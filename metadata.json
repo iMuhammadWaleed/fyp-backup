@@ -1,0 +1,5 @@
+{
+  "name": "Catering Service System",
+  "description": "A comprehensive, website-based catering service system that allows customers to browse menus, place orders, and make payments, while providing admins with tools for managing users, food menus, orders, and viewing reports.",
+  "requestFramePermissions": []
+}
