@@ -182,18 +182,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const deleteUser = async (userId: string) => {
         setIsLoading(true);
         try {
-            const userToDelete = users.find(u => u.id === userId);
             const result = await apiService.deleteUser(userId);
             if (result.success) {
-                setUsers(prev => prev.filter(u => u.id !== userId));
-
-                // Handle side-effect for Caterer deletion: reassign menu items
-                if (userToDelete?.role === UserRole.CATERER) {
-                    const fallbackCatererId = 'user-1'; // As defined in apiService
-                    setMenuItems(prevItems => prevItems.map(item =>
-                        item.catererId === userId ? { ...item, catererId: fallbackCatererId } : item
-                    ));
-                }
+                await fetchData();
             }
             return result;
         } catch (error) {
@@ -245,7 +236,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             const result = await apiService.deleteMenuItem(itemId);
             if (result.success) {
-                setMenuItems(prev => prev.filter(item => item.id !== itemId));
+                await fetchData();
                 setCart(prev => prev.filter(cartItem => cartItem.item.id !== itemId));
                 setFavorites(prev => prev.filter(id => id !== itemId));
             }
@@ -292,15 +283,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             const result = await apiService.deleteCategory(categoryId);
             if (result.success) {
-                const fallbackCategory = categories.find(c => c.id !== categoryId);
-                if (fallbackCategory) {
-                    setMenuItems(prevItems => prevItems.map(item =>
-                        item.categoryId === categoryId
-                            ? { ...item, categoryId: fallbackCategory.id }
-                            : item
-                    ));
-                }
-                setCategories(prev => prev.filter(cat => cat.id !== categoryId));
+                await fetchData();
             }
             return result;
         } catch (error) {
@@ -371,7 +354,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             const result = await apiService.deleteOrder(orderId);
             if (result.success) {
-                setOrders(prev => prev.filter(order => order.id !== orderId));
+                await fetchData();
             }
             return result;
         } catch (error) {
