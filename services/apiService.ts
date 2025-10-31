@@ -4,57 +4,61 @@ import { User, MenuItem, Category, Order, CartItem, UserRole } from '../types';
 
 const SIMULATED_DELAY = 150; // ms
 
-// --- LocalStorage Wrapper ---
-const storage = {
-    get: <T,>(key: string): T | null => {
-        try {
-            const item = localStorage.getItem(key);
-            return item ? JSON.parse(item) : null;
-        } catch (e) { console.error(`Failed to read ${key} from localStorage`, e); return null; }
-    },
-    set: <T,>(key: string, value: T): void => {
-        try {
-            localStorage.setItem(key, JSON.stringify(value));
-        } catch (e) { console.error(`Failed to write ${key} to localStorage`, e); }
+// Use a single key for the whole database to ensure transactional updates
+const DB_KEY = 'gourmetgo_db';
+
+interface Database {
+    users: User[];
+    categories: Category[];
+    menuItems: MenuItem[];
+    orders: Order[];
+}
+
+// In-memory representation of the database
+let db: Database;
+
+const initDatabase = () => {
+    const storedDb = localStorage.getItem(DB_KEY);
+    if (storedDb) {
+        db = JSON.parse(storedDb);
+    } else {
+        // Deep copy from constants to avoid any reference issues
+        db = {
+            users: JSON.parse(JSON.stringify(MOCK_USERS)),
+            categories: JSON.parse(JSON.stringify(MOCK_CATEGORIES)),
+            menuItems: JSON.parse(JSON.stringify(MOCK_MENU_ITEMS)),
+            orders: JSON.parse(JSON.stringify(MOCK_ORDERS)),
+        };
+        localStorage.setItem(DB_KEY, JSON.stringify(db));
     }
 };
 
-// --- Data Initialization ---
-const initDatabase = () => {
-    // Seed data only if it doesn't exist at all
-    if (storage.get('users') === null) storage.set('users', MOCK_USERS);
-    if (storage.get('categories') === null) storage.set('categories', MOCK_CATEGORIES);
-    if (storage.get('menuItems') === null) storage.set('menuItems', MOCK_MENU_ITEMS);
-    if (storage.get('orders') === null) storage.set('orders', MOCK_ORDERS);
+const persistDb = () => {
+    localStorage.setItem(DB_KEY, JSON.stringify(db));
 };
+
 initDatabase();
 
-// --- Simulated Database Access ---
-const db = {
-    users: () => storage.get<User[]>('users') || [],
-    categories: () => storage.get<Category[]>('categories') || [],
-    menuItems: () => storage.get<MenuItem[]>('menuItems') || [],
-    orders: () => storage.get<Order[]>('orders') || [],
-};
 
 const withDelay = <T,>(data: T): Promise<T> => new Promise(resolve => setTimeout(() => resolve(data), SIMULATED_DELAY));
 
 // --- API Service Definition ---
+// API service now operates on the in-memory `db` object and persists changes.
 export const apiService = {
     // --- Combined Fetch ---
     fetchAllData: async () => {
-        const [users, categories, menuItems, orders] = await Promise.all([
-            withDelay(db.users()),
-            withDelay(db.categories()),
-            withDelay(db.menuItems()),
-            withDelay(db.orders()),
-        ]);
-        return { users, categories, menuItems, orders };
+         // Return copies to prevent direct mutation of the in-memory db from outside
+        return withDelay({
+            users: [...db.users],
+            categories: [...db.categories],
+            menuItems: [...db.menuItems],
+            orders: [...db.orders],
+        });
     },
 
     // --- Auth ---
     loginUser: async (email: string, password?: string): Promise<{ success: boolean; user: User | null; message: string }> => {
-        const user = db.users().find(u => u.email.toLowerCase() === email.toLowerCase());
+        const user = db.users.find(u => u.email.toLowerCase() === email.toLowerCase());
         if (user && user.password === password) {
             return withDelay({ success: true, user, message: 'Login successful.' });
         }
@@ -63,37 +67,31 @@ export const apiService = {
 
     // --- Users ---
     addUser: async (userData: Omit<User, 'id'>) => {
-        const users = db.users();
-        if (users.some(u => u.email.toLowerCase() === userData.email.toLowerCase())) {
+        if (db.users.some(u => u.email.toLowerCase() === userData.email.toLowerCase())) {
             return withDelay({ success: false, data: null, message: 'An account with this email already exists.' });
         }
         const newUser: User = { ...userData, id: `user-${Date.now()}` };
-        storage.set('users', [...users, newUser]);
+        db.users.push(newUser);
+        persistDb();
         return withDelay({ success: true, data: newUser, message: 'User added.' });
     },
     
     updateUser: async (updatedUser: User) => {
-        const users = db.users();
-        const updatedUsers = users.map(u => u.id === updatedUser.id ? updatedUser : u);
-        storage.set('users', updatedUsers);
+        db.users = db.users.map(u => u.id === updatedUser.id ? updatedUser : u);
+        persistDb();
         return withDelay({ success: true, data: updatedUser, message: 'User updated.' });
     },
 
     deleteUser: async (userId: string) => {
-        const users = db.users();
-        const menuItems = db.menuItems();
-        const orders = db.orders();
-
-        const userToDelete = users.find(u => u.id === userId);
+        const userToDelete = db.users.find(u => u.id === userId);
         if (!userToDelete) {
             return withDelay({ success: false, message: "User not found." });
         }
 
         // For customers, block deletion if they have orders
         if (userToDelete.role === UserRole.CUSTOMER) {
-            const blockingOrders = orders.filter(order => order.userId === userId);
-            if (blockingOrders.length > 0) {
-                const message = `Cannot delete customer "${userToDelete.name}". They have ${blockingOrders.length} existing order(s). Please resolve these orders first.`;
+            if (db.orders.some(order => order.userId === userId)) {
+                const message = `Cannot delete customer "${userToDelete.name}". They have existing order(s). Please resolve these orders first.`;
                 return withDelay({ success: false, message });
             }
         }
@@ -103,90 +101,84 @@ export const apiService = {
         // For caterers, reassign their menu items to the main admin/platform account
         if (userToDelete.role === UserRole.CATERER) {
             const fallbackCatererId = 'user-1'; // The main admin account
-            const fallbackCaterer = users.find(u => u.id === fallbackCatererId);
-            const itemsToReassign = menuItems.filter(item => item.catererId === userId);
+            const fallbackCaterer = db.users.find(u => u.id === fallbackCatererId);
+            const itemsToReassign = db.menuItems.filter(item => item.catererId === userId);
             
             if (itemsToReassign.length > 0) {
                  if (!fallbackCaterer) {
                      return withDelay({ success: false, message: `Cannot delete caterer "${userToDelete.name}" because the fallback admin account (ID: user-1) was not found.` });
                 }
-                const updatedMenuItems = menuItems.map(item => 
+                db.menuItems = db.menuItems.map(item => 
                     item.catererId === userId 
                         ? { ...item, catererId: fallbackCatererId } 
                         : item
                 );
-                storage.set('menuItems', updatedMenuItems);
                 successMessage = `Caterer "${userToDelete.name}" deleted. Their menu items were reassigned to "${fallbackCaterer.businessName}".`;
             }
         }
         
-        storage.set('users', users.filter(u => u.id !== userId));
+        db.users = db.users.filter(u => u.id !== userId);
+        persistDb();
         return withDelay({ success: true, message: successMessage });
     },
 
     // --- Menu Items ---
     addMenuItem: async (itemData: Omit<MenuItem, 'id'>) => {
-        const menuItems = db.menuItems();
         const newItem: MenuItem = { ...itemData, id: `item-${Date.now()}` };
-        storage.set('menuItems', [...menuItems, newItem]);
+        db.menuItems.push(newItem);
+        persistDb();
         return withDelay({ success: true, data: newItem, message: 'Menu item added.' });
     },
 
     updateMenuItem: async (updatedItem: MenuItem) => {
-        const menuItems = db.menuItems();
-        const updatedMenuItems = menuItems.map(item => item.id === updatedItem.id ? updatedItem : item);
-        storage.set('menuItems', updatedMenuItems);
+        db.menuItems = db.menuItems.map(item => item.id === updatedItem.id ? updatedItem : item);
+        persistDb();
         return withDelay({ success: true, data: updatedItem, message: 'Menu item updated.' });
     },
 
     deleteMenuItem: async (itemId: string) => {
-        const menuItems = db.menuItems();
         // Check if item is in an order. In a real app, this might have more complex logic.
-        const orders = db.orders();
-        const isItemInOrder = orders.some(order => order.items.some(cartItem => cartItem.item.id === itemId));
-        if (isItemInOrder) {
+        if (db.orders.some(order => order.items.some(cartItem => cartItem.item.id === itemId))) {
             return withDelay({ success: false, message: 'Cannot delete item as it is part of an existing order. Consider deactivating it instead.' });
         }
-        storage.set('menuItems', menuItems.filter(item => item.id !== itemId));
+        db.menuItems = db.menuItems.filter(item => item.id !== itemId);
+        persistDb();
         return withDelay({ success: true, message: 'Menu item deleted.' });
     },
 
     // --- Categories ---
     addCategory: async (categoryName: string) => {
-        const categories = db.categories();
-        if (categories.some(c => c.name.toLowerCase() === categoryName.toLowerCase())) {
+        if (db.categories.some(c => c.name.toLowerCase() === categoryName.toLowerCase())) {
             return withDelay({ success: false, data: null, message: 'A category with this name already exists.' });
         }
         const newCategory: Category = { name: categoryName, id: `cat-${Date.now()}` };
-        storage.set('categories', [...categories, newCategory]);
+        db.categories.push(newCategory);
+        persistDb();
         return withDelay({ success: true, data: newCategory, message: 'Category added.' });
     },
     
     updateCategory: async (updatedCategory: Category) => {
-        const categories = db.categories();
-        const updatedCategories = categories.map(cat => cat.id === updatedCategory.id ? updatedCategory : cat);
-        storage.set('categories', updatedCategories);
+        db.categories = db.categories.map(cat => cat.id === updatedCategory.id ? updatedCategory : cat);
+        persistDb();
         return withDelay({ success: true, data: updatedCategory, message: 'Category updated.' });
     },
 
     deleteCategory: async (categoryId: string) => {
-        const categories = db.categories();
-        const menuItems = db.menuItems();
-        if (categories.length <= 1) {
+        if (db.categories.length <= 1) {
             return withDelay({ success: false, message: 'Cannot delete the last category.' });
         }
-        const fallbackCategory = categories.find(c => c.id !== categoryId);
+        const fallbackCategory = db.categories.find(c => c.id !== categoryId);
         if (!fallbackCategory) {
             // This case should be virtually impossible given the check above, but it's good practice for type safety.
             return withDelay({ success: false, message: 'Critical error: Could not find a fallback category.' });
         }
-        const updatedMenuItems = menuItems.map(item => 
+        db.menuItems = db.menuItems.map(item => 
             item.categoryId === categoryId 
                 ? { ...item, categoryId: fallbackCategory.id } 
                 : item
         );
-        storage.set('menuItems', updatedMenuItems);
-        storage.set('categories', categories.filter(cat => cat.id !== categoryId));
+        db.categories = db.categories.filter(cat => cat.id !== categoryId);
+        persistDb();
         return withDelay({ success: true, message: 'Category deleted. Menu items were reassigned.' });
     },
 
@@ -204,7 +196,6 @@ export const apiService = {
              return withDelay({ success: false, data: null, message: 'Payment was declined by the bank. Please check your card details.' });
         }
 
-        const orders = db.orders();
         const newOrder: Order = {
             id: `order-${Date.now()}`,
             userId: user.id,
@@ -214,24 +205,23 @@ export const apiService = {
             status: 'Pending',
             orderDate: new Date().toISOString(),
         };
-        storage.set('orders', [...orders, newOrder]);
+        db.orders.push(newOrder);
+        persistDb();
         return withDelay({ success: true, data: newOrder, message: 'Order placed successfully.' });
     },
 
     updateOrderStatus: async (orderId: string, status: Order['status']) => {
-        const orders = db.orders();
-        const updatedOrders = orders.map(order => 
+        db.orders = db.orders.map(order => 
             order.id === orderId 
                 ? { ...order, status } 
                 : order
         );
-        storage.set('orders', updatedOrders);
+        persistDb();
         return withDelay({ success: true, message: 'Order status updated successfully.' });
     },
 
     deleteOrder: async (orderId: string) => {
-        const orders = db.orders();
-        const orderToDelete = orders.find(o => o.id === orderId);
+        const orderToDelete = db.orders.find(o => o.id === orderId);
 
         if (!orderToDelete) {
              return withDelay({ success: false, message: 'Order not found.' });
@@ -241,8 +231,8 @@ export const apiService = {
             return withDelay({ success: false, message: 'Only delivered or cancelled orders can be deleted.' });
         }
         
-        const updatedOrders = orders.filter(order => order.id !== orderId);
-        storage.set('orders', updatedOrders);
+        db.orders = db.orders.filter(order => order.id !== orderId);
+        persistDb();
         return withDelay({ success: true, message: 'Order deleted successfully.' });
     },
 };
