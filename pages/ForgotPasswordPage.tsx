@@ -1,6 +1,7 @@
 import React, { useState, FormEvent } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
+import { UserRole } from '../types';
 
 const AppLogo = () => (
     <div className="flex flex-col items-center space-y-2">
@@ -14,18 +15,43 @@ const AppLogo = () => (
 );
 
 const ForgotPasswordPage: React.FC = () => {
-    const { resetPassword } = useAppContext();
+    const { resetPassword, users } = useAppContext();
     const navigate = ReactRouterDOM.useNavigate();
     
     const [email, setEmail] = useState('');
+    const [verificationCode, setVerificationCode] = useState('');
+    const [enteredCode, setEnteredCode] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
-    const [step, setStep] = useState(1); // 1: email, 2: reset, 3: success
+    const [step, setStep] = useState(1); // 1: email, 2: code, 3: reset, 4: success
 
     const handleEmailSubmit = (e: FormEvent) => {
         e.preventDefault();
+        setError('');
+        const userExists = users.some(u => u.email.toLowerCase() === email.toLowerCase() && u.role === UserRole.CUSTOMER);
+        if (!userExists) {
+            setError("No customer account found with this email address.");
+            return;
+        }
+
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        setVerificationCode(code);
+        
+        // Simulate sending email. In a real app, this would be an API call.
+        alert(`For demonstration purposes, your verification code is: ${code}`);
+        
         setStep(2);
+    };
+
+    const handleCodeSubmit = (e: FormEvent) => {
+        e.preventDefault();
+        setError('');
+        if (enteredCode === verificationCode) {
+            setStep(3);
+        } else {
+            setError("Invalid verification code. Please try again.");
+        }
     };
 
     const handleResetSubmit = async (e: FormEvent) => {
@@ -44,7 +70,7 @@ const ForgotPasswordPage: React.FC = () => {
         const result = await resetPassword(email, newPassword);
 
         if (result.success) {
-            setStep(3);
+            setStep(4);
             setTimeout(() => {
                 navigate('/login');
             }, 3000);
@@ -55,7 +81,8 @@ const ForgotPasswordPage: React.FC = () => {
     
     const getPageTitle = () => {
         if (step === 1) return 'Forgot Your Password?';
-        if (step === 2) return 'Create a New Password';
+        if (step === 2) return 'Enter Verification Code';
+        if (step === 3) return 'Create a New Password';
         return 'Password Reset Successful!';
     };
 
@@ -70,6 +97,11 @@ const ForgotPasswordPage: React.FC = () => {
                      {step === 1 && (
                         <p className="mt-2 text-sm text-gray-600">
                             Enter your email and we'll help you reset your password.
+                        </p>
+                    )}
+                    {step === 2 && (
+                        <p className="mt-2 text-sm text-gray-600">
+                           A 6-digit verification code has been sent to your email.
                         </p>
                     )}
                 </div>
@@ -97,7 +129,7 @@ const ForgotPasswordPage: React.FC = () => {
                                     />
                                 </div>
                             </div>
-                            
+                             {error && <p className="text-red-500 text-sm text-center">{error}</p>}
                             <div>
                                 <button
                                     type="submit"
@@ -106,7 +138,6 @@ const ForgotPasswordPage: React.FC = () => {
                                     Continue
                                 </button>
                             </div>
-
                              <div className="text-sm text-center">
                                 <ReactRouterDOM.Link to="/login" className="font-medium text-teal-600 hover:text-teal-500">
                                     Remembered your password? Sign in
@@ -115,6 +146,38 @@ const ForgotPasswordPage: React.FC = () => {
                         </form>
                     )}
                     {step === 2 && (
+                        <form className="space-y-6" onSubmit={handleCodeSubmit}>
+                            <div className="rounded-md shadow-sm">
+                                <div className="relative">
+                                    <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 1 1 0 000-2z" clipRule="evenodd" />
+                                        </svg>
+                                    </span>
+                                    <input
+                                        id="verification-code"
+                                        name="verification-code"
+                                        type="text"
+                                        required
+                                        value={enteredCode}
+                                        onChange={e => setEnteredCode(e.target.value)}
+                                        className="appearance-none rounded-md relative block w-full px-3 py-2 pl-10 border border-gray-300 placeholder-gray-500 text-gray-900 bg-white focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                                        placeholder="6-digit code"
+                                    />
+                                </div>
+                            </div>
+                            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+                            <div>
+                                <button
+                                    type="submit"
+                                    className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+                                >
+                                    Verify Code
+                                </button>
+                            </div>
+                        </form>
+                    )}
+                    {step === 3 && (
                          <form className="space-y-6" onSubmit={handleResetSubmit}>
                              <p className="text-center text-sm text-gray-600">Enter a new password for <strong>{email}</strong>.</p>
                             <div className="rounded-md shadow-sm space-y-4">
@@ -164,7 +227,7 @@ const ForgotPasswordPage: React.FC = () => {
                             </div>
                         </form>
                     )}
-                     {step === 3 && (
+                     {step === 4 && (
                         <div className="text-center">
                             <p className="text-green-700">
                                 Your password has been successfully reset.
