@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { User, UserRole, MenuItem, Category, Order, CartItem } from '../types';
 import { apiService } from '../services/apiService';
+import { geminiService } from '../services/geminiService';
 
 interface AppContextType {
     // State
@@ -11,6 +12,7 @@ interface AppContextType {
     orders: Order[];
     cart: CartItem[];
     favorites: string[];
+    recommendations: MenuItem[];
     isLoading: boolean;
     
     // Derived State
@@ -60,6 +62,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     // --- State ---
     const [isLoading, setIsLoading] = useState(true);
+    const [isFetchingRecs, setIsFetchingRecs] = useState(false);
     const [currentUser, setCurrentUser] = useState<User | null>(() => JSON.parse(localStorage.getItem('currentUser') || 'null'));
     const [users, setUsers] = useState<User[]>([]);
     const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -67,6 +70,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [orders, setOrders] = useState<Order[]>([]);
     const [cart, setCart] = useState<CartItem[]>(() => JSON.parse(localStorage.getItem('cart') || '[]'));
     const [favorites, setFavorites] = useState<string[]>(() => JSON.parse(localStorage.getItem('favorites') || '[]'));
+    const [recommendations, setRecommendations] = useState<MenuItem[]>([]);
 
     // --- Data Fetching ---
     const fetchData = useCallback(async () => {
@@ -92,6 +96,64 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     useEffect(() => { localStorage.setItem('currentUser', JSON.stringify(currentUser)); }, [currentUser]);
     useEffect(() => { localStorage.setItem('cart', JSON.stringify(cart)); }, [cart]);
     useEffect(() => { localStorage.setItem('favorites', JSON.stringify(favorites)); }, [favorites]);
+    
+    // --- AI Recommendations ---
+    const fetchRecommendations = useCallback(async () => {
+        if (!currentUser || currentUser.role !== UserRole.CUSTOMER || menuItems.length === 0) {
+            setRecommendations([]);
+            return;
+        }
+
+        const userOrders = orders.filter(o => o.userId === currentUser.id);
+        if (favorites.length === 0 && userOrders.length === 0) {
+            setRecommendations([]);
+            return;
+        }
+
+        setIsFetchingRecs(true);
+        try {
+            const favoriteItems = menuItems.filter(item => favorites.includes(item.id));
+            const orderedItems = userOrders.flatMap(o => o.items.map(cartItem => cartItem.item));
+            
+            const preferredItems = [...favoriteItems, ...orderedItems];
+            const uniquePreferredItemNames = [...new Set(preferredItems.map(item => item.name))];
+
+            if (uniquePreferredItemNames.length === 0) {
+                 setRecommendations([]);
+                 return;
+            }
+
+            const allItemNames = menuItems.map(item => item.name);
+            const potentialRecs = allItemNames.filter(name => !uniquePreferredItemNames.includes(name));
+            
+            if (potentialRecs.length === 0) {
+                setRecommendations([]);
+                return;
+            }
+
+            const recommendedNames = await geminiService.getMenuRecommendations(uniquePreferredItemNames, potentialRecs);
+            const recommendedMenuItems = menuItems
+                .filter(item => recommendedNames.includes(item.name))
+                 // Sort based on the order returned by the AI
+                .sort((a, b) => recommendedNames.indexOf(a.name) - recommendedNames.indexOf(b.name));
+            
+            setRecommendations(recommendedMenuItems);
+
+        } catch (error) {
+            console.error("Failed to fetch recommendations:", error);
+            setRecommendations([]); // Clear on error
+        } finally {
+            setIsFetchingRecs(false);
+        }
+    }, [currentUser, favorites, orders, menuItems]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchRecommendations();
+        }, 500); // Debounce to avoid rapid firing
+        return () => clearTimeout(timer);
+    }, [fetchRecommendations]);
+
 
     // --- Auth ---
     const login = async (email: string, password?: string) => {
@@ -110,7 +172,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     };
     
-    const logout = () => setCurrentUser(null);
+    const logout = () => {
+        setCurrentUser(null);
+        setRecommendations([]);
+    };
     
     const register = async (userData: Omit<User, 'id'>) => {
         setIsLoading(true);
@@ -386,7 +451,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     // --- Context Value ---
     const value = {
-        currentUser, users, menuItems, categories, orders, cart, favorites, isLoading, cartTotal,
+        currentUser, users, menuItems, categories, orders, cart, favorites, recommendations,
+        isLoading: isLoading || isFetchingRecs, // Combine loading states
+        cartTotal,
         login, logout, register, registerCaterer, resetPassword,
         addUser, updateUser, deleteUser,
         addMenuItem, updateMenuItem, deleteMenuItem,

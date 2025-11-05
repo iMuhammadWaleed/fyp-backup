@@ -3,6 +3,7 @@ import React from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import MenuItemCard from '../components/MenuItemCard';
+import { UserRole } from '../types';
 
 const HowItWorksCard: React.FC<{ number: string, title: string, description: string, icon: React.ReactNode }> = ({ number, title, description, icon }) => (
     <div className="text-center p-6 bg-white rounded-lg shadow-md border border-gray-200">
@@ -23,7 +24,7 @@ const TestimonialCard: React.FC<{ quote: string, author: string, role: string }>
 );
 
 const HomePage: React.FC = () => {
-    const { menuItems } = useAppContext();
+    const { menuItems, currentUser, recommendations } = useAppContext();
     
     // Show a few featured items on the home page
     const featuredItems = menuItems.slice(0, 4);
@@ -80,6 +81,17 @@ const HomePage: React.FC = () => {
                     ))}
                 </div>
             </section>
+
+            {currentUser && currentUser.role === UserRole.CUSTOMER && recommendations.length > 0 && (
+                <section>
+                    <h2 className="text-3xl font-bold text-center mb-8">Recommended For You ✨</h2>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+                        {recommendations.map(item => (
+                            <MenuItemCard key={item.id} item={item} />
+                        ))}
+                    </div>
+                </section>
+            )}
 
              <section className="bg-teal-50 py-12 rounded-lg">
                 <h2 className="text-3xl font-bold text-center mb-10">What Our Customers Say</h2>
