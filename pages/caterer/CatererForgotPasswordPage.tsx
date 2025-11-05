@@ -1,6 +1,6 @@
-
 import React, { useState, FormEvent } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
+import { useAppContext } from '../../context/AppContext';
 
 const AppLogo = () => (
     <div className="flex flex-col items-center space-y-2">
@@ -14,14 +14,49 @@ const AppLogo = () => (
 );
 
 const CatererForgotPasswordPage: React.FC = () => {
+    const { resetPassword } = useAppContext();
+    const navigate = ReactRouterDOM.useNavigate();
+    
     const [email, setEmail] = useState('');
-    const [isSubmitted, setIsSubmitted] = useState(false);
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [error, setError] = useState('');
+    const [step, setStep] = useState(1); // 1: email, 2: reset, 3: success
 
-    const handleSubmit = (e: FormEvent) => {
+    const handleEmailSubmit = (e: FormEvent) => {
         e.preventDefault();
-        // In a real app, you'd call an API here.
-        // For this mock, we just show the confirmation message.
-        setIsSubmitted(true);
+        setStep(2);
+    };
+
+    const handleResetSubmit = async (e: FormEvent) => {
+        e.preventDefault();
+        setError('');
+
+        if (newPassword !== confirmPassword) {
+            setError("Passwords do not match.");
+            return;
+        }
+        if (newPassword.length < 6) {
+            setError("Password must be at least 6 characters long.");
+            return;
+        }
+
+        const result = await resetPassword(email, newPassword);
+
+        if (result.success) {
+            setStep(3);
+            setTimeout(() => {
+                navigate('/caterer/login');
+            }, 3000);
+        } else {
+            setError(result.message);
+        }
+    };
+    
+    const getPageTitle = () => {
+        if (step === 1) return 'Caterer Password Recovery';
+        if (step === 2) return 'Create a New Password';
+        return 'Password Reset Successful!';
     };
 
     return (
@@ -30,28 +65,17 @@ const CatererForgotPasswordPage: React.FC = () => {
                 <div className="text-center p-8 bg-slate-100/90 border-b border-slate-200">
                     <AppLogo />
                     <h2 className="mt-6 text-center text-2xl font-bold text-gray-900">
-                        {isSubmitted ? 'Check Your Email' : 'Caterer Password Recovery'}
+                        {getPageTitle()}
                     </h2>
-                     {!isSubmitted && (
+                     {step === 1 && (
                         <p className="mt-2 text-sm text-gray-600">
                             Enter your caterer email to receive reset instructions.
                         </p>
                     )}
                 </div>
                 <div className="p-8">
-                    {isSubmitted ? (
-                        <div className="text-center">
-                            <p className="text-gray-700">
-                                If a caterer account with the email <strong>{email}</strong> exists, you will receive a password reset link shortly.
-                            </p>
-                            <div className="text-sm text-center mt-6">
-                                <ReactRouterDOM.Link to="/caterer/login" className="font-medium text-teal-600 hover:text-teal-500">
-                                    &larr; Back to Caterer Sign in
-                                </ReactRouterDOM.Link>
-                            </div>
-                        </div>
-                    ) : (
-                        <form className="space-y-6" onSubmit={handleSubmit}>
+                    {step === 1 && (
+                        <form className="space-y-6" onSubmit={handleEmailSubmit}>
                             <div className="rounded-md shadow-sm">
                                 <div className="relative">
                                      <span className="absolute inset-y-0 left-0 flex items-center pl-3">
@@ -79,7 +103,7 @@ const CatererForgotPasswordPage: React.FC = () => {
                                     type="submit"
                                     className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
                                 >
-                                    Send Reset Link
+                                    Continue
                                 </button>
                             </div>
 
@@ -89,6 +113,66 @@ const CatererForgotPasswordPage: React.FC = () => {
                                 </ReactRouterDOM.Link>
                             </div>
                         </form>
+                    )}
+                    {step === 2 && (
+                         <form className="space-y-6" onSubmit={handleResetSubmit}>
+                            <p className="text-center text-sm text-gray-600">Enter a new password for <strong>{email}</strong>.</p>
+                             <div className="rounded-md shadow-sm space-y-4">
+                                <div className="relative">
+                                    <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                                        <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                                        </svg>
+                                    </span>
+                                    <input
+                                        id="new-password"
+                                        name="new-password"
+                                        type="password"
+                                        required
+                                        value={newPassword}
+                                        onChange={e => setNewPassword(e.target.value)}
+                                        className="appearance-none rounded-md relative block w-full px-3 py-2 pl-10 border border-gray-300 placeholder-gray-500 text-gray-900 bg-white focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                                        placeholder="New Password"
+                                    />
+                                </div>
+                                 <div className="relative">
+                                    <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                                        <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                                        </svg>
+                                    </span>
+                                    <input
+                                        id="confirm-password"
+                                        name="confirm-password"
+                                        type="password"
+                                        required
+                                        value={confirmPassword}
+                                        onChange={e => setConfirmPassword(e.target.value)}
+                                        className="appearance-none rounded-md relative block w-full px-3 py-2 pl-10 border border-gray-300 placeholder-gray-500 text-gray-900 bg-white focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                                        placeholder="Confirm New Password"
+                                    />
+                                </div>
+                            </div>
+                            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+                            <div>
+                                <button
+                                    type="submit"
+                                    className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+                                >
+                                    Reset Password
+                                </button>
+                            </div>
+                        </form>
+                    )}
+                     {step === 3 && (
+                        <div className="text-center">
+                            <p className="text-green-700">
+                                Your password has been successfully reset.
+                            </p>
+                             <p className="mt-2 text-sm text-gray-600">
+                                You will be redirected to the caterer sign-in page shortly.
+                            </p>
+                        </div>
                     )}
                 </div>
             </div>

@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { User, UserRole, MenuItem, Category, Order, CartItem } from '../types';
 import { apiService } from '../services/apiService';
@@ -23,6 +22,7 @@ interface AppContextType {
     logout: () => void;
     register: (userData: Omit<User, 'id'>) => Promise<{ success: boolean; message: string; }>;
     registerCaterer: (data: Omit<User, 'id' | 'role'>) => Promise<{ success: boolean; message: string; }>;
+    resetPassword: (email: string, newPassword: string) => Promise<{ success: boolean; message: string; }>;
 
     // Users
     addUser: (userData: Omit<User, 'id'>) => Promise<{ success: boolean; message: string }>;
@@ -141,6 +141,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             return { success: result.success, message: result.message };
         } catch (error) {
             console.error("Caterer registration error:", error);
+            return { success: false, message: "An unexpected error occurred." };
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const resetPassword = async (email: string, newPassword: string) => {
+        setIsLoading(true);
+        try {
+            const result = await apiService.resetPassword(email, newPassword);
+            return result;
+        } catch (error) {
+            console.error("Reset password error:", error);
             return { success: false, message: "An unexpected error occurred." };
         } finally {
             setIsLoading(false);
@@ -374,7 +387,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // --- Context Value ---
     const value = {
         currentUser, users, menuItems, categories, orders, cart, favorites, isLoading, cartTotal,
-        login, logout, register, registerCaterer,
+        login, logout, register, registerCaterer, resetPassword,
         addUser, updateUser, deleteUser,
         addMenuItem, updateMenuItem, deleteMenuItem,
         addCategory, updateCategory, deleteCategory,

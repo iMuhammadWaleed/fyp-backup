@@ -1,4 +1,3 @@
-
 import { MOCK_USERS, MOCK_CATEGORIES, MOCK_MENU_ITEMS, MOCK_ORDERS } from '../constants';
 import { User, MenuItem, Category, Order, CartItem, UserRole } from '../types';
 
@@ -63,6 +62,16 @@ export const apiService = {
             return withDelay({ success: true, user, message: 'Login successful.' });
         }
         return withDelay({ success: false, user: null, message: 'Invalid credentials.' });
+    },
+    
+    resetPassword: async (email: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
+        const userIndex = db.users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
+        if (userIndex > -1) {
+            db.users[userIndex].password = newPassword;
+            persistDb();
+        }
+        // To prevent user enumeration, always return a success-style message.
+        return withDelay({ success: true, message: 'Password reset successful. You can now log in with your new password.' });
     },
 
     // --- Users ---
