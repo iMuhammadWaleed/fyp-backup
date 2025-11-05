@@ -50,7 +50,7 @@ interface AppContextType {
     clearCart: () => void;
 
     // Orders
-    placeOrder: (paymentDetails: { method: string; cardNumber?: string; }) => Promise<{ success: boolean; order?: Order | null; error?: string }>;
+    placeOrder: (paymentDetails: { method: string; [key: string]: any; }) => Promise<{ success: boolean; order?: Order | null; error?: string }>;
     updateOrderStatus: (orderId: string, status: Order['status']) => Promise<{ success: boolean; message: string }>;
     deleteOrder: (orderId: string) => Promise<{ success: boolean; message: string }>;
     
@@ -381,7 +381,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const cartTotal = cart.reduce((total, { item, quantity }) => total + item.price * quantity, 0);
 
     // --- Orders ---
-    const placeOrder = async (paymentDetails: { method: string; cardNumber?: string; }) => {
+    const placeOrder = async (paymentDetails: { method: string; [key: string]: any; }) => {
         if (!currentUser) return { success: false, error: 'User not logged in.' };
         setIsLoading(true);
         try {

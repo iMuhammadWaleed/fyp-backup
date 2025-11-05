@@ -1,3 +1,4 @@
+
 import { MOCK_USERS, MOCK_CATEGORIES, MOCK_MENU_ITEMS, MOCK_ORDERS } from '../constants';
 import { User, MenuItem, Category, Order, CartItem, UserRole } from '../types';
 
@@ -122,7 +123,7 @@ export const apiService = {
                         ? { ...item, catererId: fallbackCatererId } 
                         : item
                 );
-                successMessage = `Caterer "${userToDelete.name}" deleted. Their menu items were reassigned to "${fallbackCaterer.businessName}".`;
+                successMessage += `\n${itemsToReassign.length} menu item(s) were reassigned to "${fallbackCaterer.businessName}".`;
             }
         }
         
@@ -130,29 +131,32 @@ export const apiService = {
         persistDb();
         return withDelay({ success: true, message: successMessage });
     },
-
+    
     // --- Menu Items ---
     addMenuItem: async (itemData: Omit<MenuItem, 'id'>) => {
         const newItem: MenuItem = { ...itemData, id: `item-${Date.now()}` };
         db.menuItems.push(newItem);
         persistDb();
-        return withDelay({ success: true, data: newItem, message: 'Menu item added.' });
+        return withDelay({ success: true, data: newItem, message: 'Item added.' });
     },
-
+    
     updateMenuItem: async (updatedItem: MenuItem) => {
-        db.menuItems = db.menuItems.map(item => item.id === updatedItem.id ? updatedItem : item);
+        db.menuItems = db.menuItems.map(i => i.id === updatedItem.id ? updatedItem : i);
         persistDb();
-        return withDelay({ success: true, data: updatedItem, message: 'Menu item updated.' });
+        return withDelay({ success: true, data: updatedItem, message: 'Item updated.' });
     },
 
     deleteMenuItem: async (itemId: string) => {
-        // Check if item is in an order. In a real app, this might have more complex logic.
-        if (db.orders.some(order => order.items.some(cartItem => cartItem.item.id === itemId))) {
-            return withDelay({ success: false, message: 'Cannot delete item as it is part of an existing order. Consider deactivating it instead.' });
+        // Prevent deletion if the item is in any order
+        const isInOrder = db.orders.some(order => order.items.some(cartItem => cartItem.item.id === itemId));
+        if (isInOrder) {
+            const itemName = db.menuItems.find(item => item.id === itemId)?.name || 'the item';
+            return withDelay({ success: false, message: `Cannot delete "${itemName}" because it is part of one or more existing orders.` });
         }
-        db.menuItems = db.menuItems.filter(item => item.id !== itemId);
+
+        db.menuItems = db.menuItems.filter(i => i.id !== itemId);
         persistDb();
-        return withDelay({ success: true, message: 'Menu item deleted.' });
+        return withDelay({ success: true, message: 'Item deleted.' });
     },
 
     // --- Categories ---
@@ -160,49 +164,51 @@ export const apiService = {
         if (db.categories.some(c => c.name.toLowerCase() === categoryName.toLowerCase())) {
             return withDelay({ success: false, data: null, message: 'A category with this name already exists.' });
         }
-        const newCategory: Category = { name: categoryName, id: `cat-${Date.now()}` };
+        const newCategory: Category = { id: `cat-${Date.now()}`, name: categoryName };
         db.categories.push(newCategory);
         persistDb();
         return withDelay({ success: true, data: newCategory, message: 'Category added.' });
     },
-    
+
     updateCategory: async (updatedCategory: Category) => {
-        db.categories = db.categories.map(cat => cat.id === updatedCategory.id ? updatedCategory : cat);
+         if (db.categories.some(c => c.name.toLowerCase() === updatedCategory.name.toLowerCase() && c.id !== updatedCategory.id)) {
+            return withDelay({ success: false, data: null, message: 'Another category with this name already exists.' });
+        }
+        db.categories = db.categories.map(c => c.id === updatedCategory.id ? updatedCategory : c);
         persistDb();
         return withDelay({ success: true, data: updatedCategory, message: 'Category updated.' });
     },
 
     deleteCategory: async (categoryId: string) => {
-        if (db.categories.length <= 1) {
-            return withDelay({ success: false, message: 'Cannot delete the last category.' });
+        const defaultCategory = db.categories[0];
+        if (!defaultCategory || defaultCategory.id === categoryId) {
+             return withDelay({ success: false, message: 'Cannot delete the default category.' });
         }
-        const fallbackCategory = db.categories.find(c => c.id !== categoryId);
-        if (!fallbackCategory) {
-            // This case should be virtually impossible given the check above, but it's good practice for type safety.
-            return withDelay({ success: false, message: 'Critical error: Could not find a fallback category.' });
-        }
+        // Re-assign items to the default category
         db.menuItems = db.menuItems.map(item => 
             item.categoryId === categoryId 
-                ? { ...item, categoryId: fallbackCategory.id } 
+                ? { ...item, categoryId: defaultCategory.id } 
                 : item
         );
-        db.categories = db.categories.filter(cat => cat.id !== categoryId);
+        db.categories = db.categories.filter(c => c.id !== categoryId);
         persistDb();
-        return withDelay({ success: true, message: 'Category deleted. Menu items were reassigned.' });
+        return withDelay({ success: true, message: 'Category deleted and items reassigned.' });
     },
 
     // --- Orders ---
-    placeOrder: async (user: User, cart: CartItem[], total: number, paymentDetails: { method: string; cardNumber?: string; }) => {
-        if (!user) {
-            return withDelay({ success: false, data: null, message: 'User not logged in.' });
-        }
+    placeOrder: async (user: User, cart: CartItem[], total: number, paymentDetails: { method: string; [key: string]: any; }) => {
         if (cart.length === 0) {
-            return withDelay({ success: false, data: null, message: 'Your cart is empty.' });
+            return withDelay({ success: false, data: null, message: 'Cart is empty.' });
         }
-
-        // Simulate payment failure for specific card numbers
+        
+        // Simulate payment failure for specific cases
         if (paymentDetails.method === 'credit-card' && paymentDetails.cardNumber?.endsWith('0000')) {
-             return withDelay({ success: false, data: null, message: 'Payment was declined by the bank. Please check your card details.' });
+            return withDelay({ success: false, data: null, message: 'Your credit card was declined.' });
+        }
+        
+        // Simulate JazzCash payment failure for demonstration
+        if (paymentDetails.method === 'jazzcash' && paymentDetails.jazzcashCNIC === '000000') {
+             return withDelay({ success: false, data: null, message: 'JazzCash payment failed. Please check your details.' });
         }
 
         const newOrder: Order = {
@@ -216,32 +222,22 @@ export const apiService = {
         };
         db.orders.push(newOrder);
         persistDb();
-        return withDelay({ success: true, data: newOrder, message: 'Order placed successfully.' });
+        return withDelay({ success: true, data: newOrder, message: 'Order placed.' });
     },
 
     updateOrderStatus: async (orderId: string, status: Order['status']) => {
-        db.orders = db.orders.map(order => 
-            order.id === orderId 
-                ? { ...order, status } 
-                : order
-        );
+        db.orders = db.orders.map(o => o.id === orderId ? { ...o, status } : o);
         persistDb();
-        return withDelay({ success: true, message: 'Order status updated successfully.' });
+        return withDelay({ success: true, message: 'Order status updated.' });
     },
 
     deleteOrder: async (orderId: string) => {
-        const orderToDelete = db.orders.find(o => o.id === orderId);
-
-        if (!orderToDelete) {
-             return withDelay({ success: false, message: 'Order not found.' });
+        const order = db.orders.find(o => o.id === orderId);
+        if (order && order.status !== 'Delivered' && order.status !== 'Cancelled') {
+             return withDelay({ success: false, message: 'Cannot delete an order that is not completed or cancelled.' });
         }
-
-        if (orderToDelete.status !== 'Delivered' && orderToDelete.status !== 'Cancelled') {
-            return withDelay({ success: false, message: 'Only delivered or cancelled orders can be deleted.' });
-        }
-        
-        db.orders = db.orders.filter(order => order.id !== orderId);
+        db.orders = db.orders.filter(o => o.id !== orderId);
         persistDb();
-        return withDelay({ success: true, message: 'Order deleted successfully.' });
+        return withDelay({ success: true, message: 'Order deleted.' });
     },
 };

@@ -1,3 +1,4 @@
+
 import React, { useState, FormEvent, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 // FIX: Use namespace import for react-router-dom to resolve module export errors.
@@ -16,7 +17,8 @@ const CheckoutPage: React.FC = () => {
         zip: '',
         phone: '',
         paymentMethod: 'credit-card',
-        paypalEmail: '', // Added for PayPal
+        jazzcashNumber: '',
+        jazzcashCNIC: '',
     });
     const [paymentDetails, setPaymentDetails] = useState({
         cardNumber: '',
@@ -32,7 +34,8 @@ const CheckoutPage: React.FC = () => {
         cardNumber: '',
         expiry: '',
         cvv: '',
-        paypalEmail: '',
+        jazzcashNumber: '',
+        jazzcashCNIC: '',
     });
 
     useEffect(() => {
@@ -63,7 +66,7 @@ const CheckoutPage: React.FC = () => {
     const validate = (): boolean => {
         const newErrors = { 
             name: '', address: '', city: '', zip: '', phone: '',
-            cardNumber: '', expiry: '', cvv: '', paypalEmail: ''
+            cardNumber: '', expiry: '', cvv: '', jazzcashNumber: '', jazzcashCNIC: ''
         };
         let isValid = true;
         
@@ -94,9 +97,13 @@ const CheckoutPage: React.FC = () => {
                 newErrors.cvv = 'CVV must be 3 or 4 digits.';
                 isValid = false;
             }
-        } else if (formData.paymentMethod === 'paypal') {
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.paypalEmail)) {
-                newErrors.paypalEmail = 'Please enter a valid email address.';
+        } else if (formData.paymentMethod === 'jazzcash') {
+            if (!/^03\d{9}$/.test(formData.jazzcashNumber)) {
+                newErrors.jazzcashNumber = 'Enter a valid 11-digit mobile number (e.g., 03xxxxxxxxx).';
+                isValid = false;
+            }
+            if (!/^\d{6}$/.test(formData.jazzcashCNIC)) {
+                newErrors.jazzcashCNIC = 'Enter the last 6 digits of your CNIC.';
                 isValid = false;
             }
         }
@@ -119,6 +126,8 @@ const CheckoutPage: React.FC = () => {
             const paymentInfo = {
                 method: formData.paymentMethod,
                 cardNumber: paymentDetails.cardNumber,
+                jazzcashNumber: formData.jazzcashNumber,
+                jazzcashCNIC: formData.jazzcashCNIC,
             };
             const result = await placeOrder(paymentInfo);
 
@@ -196,9 +205,21 @@ const CheckoutPage: React.FC = () => {
                                 </div>
                             )}
                             <label className="flex items-center p-3 border rounded-md has-[:checked]:bg-teal-50 has-[:checked]:border-teal-500 cursor-pointer transition-colors">
-                                <input type="radio" name="paymentMethod" value="cod" checked={formData.paymentMethod === 'cod'} onChange={handleFormChange} className="h-4 w-4 text-teal-600 border-gray-300 focus:ring-teal-500"/>
-                                <span className="ml-3 font-medium text-gray-700">Cash on Delivery</span>
+                                <input type="radio" name="paymentMethod" value="jazzcash" checked={formData.paymentMethod === 'jazzcash'} onChange={handleFormChange} className="h-4 w-4 text-teal-600 border-gray-300 focus:ring-teal-500"/>
+                                <span className="ml-3 font-medium text-gray-700">JazzCash Mobile Wallet</span>
                             </label>
+                             {formData.paymentMethod === 'jazzcash' && (
+                                <div className="p-4 border rounded-b-md -mt-2 space-y-3 bg-gray-50">
+                                    <div>
+                                        <input type="tel" name="jazzcashNumber" placeholder="JazzCash Number (e.g. 03xxxxxxxxx)" value={formData.jazzcashNumber} onChange={handleFormChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 text-sm" />
+                                        {errors.jazzcashNumber && <p className="text-red-500 text-xs mt-1">{errors.jazzcashNumber}</p>}
+                                    </div>
+                                    <div>
+                                        <input type="text" name="jazzcashCNIC" placeholder="Last 6 digits of CNIC" value={formData.jazzcashCNIC} onChange={handleFormChange} maxLength={6} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 text-sm" />
+                                        {errors.jazzcashCNIC && <p className="text-red-500 text-xs mt-1">{errors.jazzcashCNIC}</p>}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                      {paymentError && (
