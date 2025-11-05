@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { User, UserRole, MenuItem, Category, Order, CartItem } from '../types';
 import { apiService } from '../services/apiService';
@@ -12,7 +13,7 @@ interface AppContextType {
     orders: Order[];
     cart: CartItem[];
     favorites: string[];
-    recommendations: MenuItem[];
+    mealPlan: MenuItem[];
     isLoading: boolean;
     
     // Derived State
@@ -55,6 +56,10 @@ interface AppContextType {
     
     // Favorites
     toggleFavorite: (itemId: string) => void;
+
+    // AI Meal Plan
+    generateMealPlan: (budget: number) => Promise<void>;
+    clearMealPlan: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -70,7 +75,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [orders, setOrders] = useState<Order[]>([]);
     const [cart, setCart] = useState<CartItem[]>(() => JSON.parse(localStorage.getItem('cart') || '[]'));
     const [favorites, setFavorites] = useState<string[]>(() => JSON.parse(localStorage.getItem('favorites') || '[]'));
-    const [recommendations, setRecommendations] = useState<MenuItem[]>([]);
+    const [mealPlan, setMealPlan] = useState<MenuItem[]>([]);
 
     // --- Data Fetching ---
     const fetchData = useCallback(async () => {
@@ -97,63 +102,44 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     useEffect(() => { localStorage.setItem('cart', JSON.stringify(cart)); }, [cart]);
     useEffect(() => { localStorage.setItem('favorites', JSON.stringify(favorites)); }, [favorites]);
     
-    // --- AI Recommendations ---
-    const fetchRecommendations = useCallback(async () => {
-        if (!currentUser || currentUser.role !== UserRole.CUSTOMER || menuItems.length === 0) {
-            setRecommendations([]);
-            return;
-        }
+    // --- AI Meal Planner ---
+    const clearMealPlan = () => {
+        setMealPlan([]);
+    };
 
-        const userOrders = orders.filter(o => o.userId === currentUser.id);
-        if (favorites.length === 0 && userOrders.length === 0) {
-            setRecommendations([]);
+    const generateMealPlan = async (budget: number) => {
+        if (!currentUser || currentUser.role !== UserRole.CUSTOMER || menuItems.length === 0) {
             return;
         }
 
         setIsFetchingRecs(true);
         try {
+            const userOrders = orders.filter(o => o.userId === currentUser.id);
             const favoriteItems = menuItems.filter(item => favorites.includes(item.id));
             const orderedItems = userOrders.flatMap(o => o.items.map(cartItem => cartItem.item));
             
             const preferredItems = [...favoriteItems, ...orderedItems];
             const uniquePreferredItemNames = [...new Set(preferredItems.map(item => item.name))];
-
-            if (uniquePreferredItemNames.length === 0) {
-                 setRecommendations([]);
-                 return;
-            }
-
-            const allItemNames = menuItems.map(item => item.name);
-            const potentialRecs = allItemNames.filter(name => !uniquePreferredItemNames.includes(name));
             
-            if (potentialRecs.length === 0) {
-                setRecommendations([]);
-                return;
-            }
+            const potentialMenuItems = menuItems.filter(item => !uniquePreferredItemNames.includes(item.name));
+            const menuToRecommendFrom = potentialMenuItems.length > 0 ? potentialMenuItems : menuItems;
 
-            const recommendedNames = await geminiService.getMenuRecommendations(uniquePreferredItemNames, potentialRecs);
+            const recommendedNames = await geminiService.getMealPlan(uniquePreferredItemNames, menuToRecommendFrom, budget);
+            
             const recommendedMenuItems = menuItems
                 .filter(item => recommendedNames.includes(item.name))
                  // Sort based on the order returned by the AI
                 .sort((a, b) => recommendedNames.indexOf(a.name) - recommendedNames.indexOf(b.name));
             
-            setRecommendations(recommendedMenuItems);
+            setMealPlan(recommendedMenuItems);
 
         } catch (error) {
-            console.error("Failed to fetch recommendations:", error);
-            setRecommendations([]); // Clear on error
+            console.error("Failed to fetch meal plan:", error);
+            setMealPlan([]); // Clear on error
         } finally {
             setIsFetchingRecs(false);
         }
-    }, [currentUser, favorites, orders, menuItems]);
-
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            fetchRecommendations();
-        }, 500); // Debounce to avoid rapid firing
-        return () => clearTimeout(timer);
-    }, [fetchRecommendations]);
-
+    };
 
     // --- Auth ---
     const login = async (email: string, password?: string) => {
@@ -174,7 +160,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     const logout = () => {
         setCurrentUser(null);
-        setRecommendations([]);
+        setMealPlan([]);
     };
     
     const register = async (userData: Omit<User, 'id'>) => {
@@ -451,7 +437,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     // --- Context Value ---
     const value = {
-        currentUser, users, menuItems, categories, orders, cart, favorites, recommendations,
+        currentUser, users, menuItems, categories, orders, cart, favorites, mealPlan,
         isLoading: isLoading || isFetchingRecs, // Combine loading states
         cartTotal,
         login, logout, register, registerCaterer, resetPassword,
@@ -461,6 +447,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         addToCart, addToCartWithQuantity, removeFromCart, updateCartQuantity, clearCart,
         placeOrder, updateOrderStatus, deleteOrder,
         toggleFavorite, isFavorite,
+        generateMealPlan, clearMealPlan,
     };
 
     return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

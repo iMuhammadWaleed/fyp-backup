@@ -1,27 +1,35 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
+import { MenuItem } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const geminiService = {
-    getMenuRecommendations: async (preferredItemNames: string[], allItemNames: string[]): Promise<string[]> => {
+    getMealPlan: async (preferredItemNames: string[], allMenuItems: MenuItem[], budget: number): Promise<string[]> => {
+        
+        const menuWithPrices = allMenuItems.map(item => `- ${item.name}: $${item.price.toFixed(2)}`).join('\n');
         
         const prompt = `
-You are a sophisticated menu recommendation engine for a premium catering service called GourmetGo. Your goal is to provide personalized suggestions to users based on their past preferences.
+You are a sophisticated meal planning assistant for a premium catering service called GourmetGo. Your goal is to create a personalized, budget-conscious meal plan for a user.
 
-Analyze the user's favorite items and past orders provided in the 'User's Preferred Items' list.
+Analyze the user's favorite items and past orders provided in the 'User's Preferred Items' list to understand their taste profile.
 
-Then, from the 'Full Menu' list, recommend up to 4 other distinct items that the user might enjoy. Prioritize items from different categories than what the user usually orders to encourage discovery, but ensure they are complementary. For example, if a user likes Italian main courses, you could suggest a specific Italian appetizer or dessert.
+Your main task is to create an optimized and balanced meal plan from the 'Full Menu'. A balanced meal plan should ideally include a variety of courses (e.g., an appetizer, a main course, a dessert, and a beverage), but you have flexibility.
 
-Do not recommend any items that are already in the 'User's Preferred Items' list.
+The total cost of all items in your recommended plan MUST NOT exceed the user's budget of $${budget.toFixed(2)}. Try to get as close to the budget as possible to provide the best value without going over.
+
+Do not recommend any items that are already in the 'User's Preferred Items' list, unless it's necessary to meet the budget and preferences.
 
 User's Preferred Items:
 - ${preferredItemNames.join('\n- ')}
 
-Full Menu:
-- ${allItemNames.join('\n- ')}
+Full Menu (with prices):
+${menuWithPrices}
 
-Return your answer *only* as a JSON array of strings, where each string is the exact name of a recommended menu item. Your response should contain nothing but the JSON array.
-Example response: ["Tiramisu", "Bruschetta", "Margherita Pizza"]
+User's Budget: $${budget.toFixed(2)}
+
+Return your answer *only* as a JSON array of strings, where each string is the exact name of a recommended menu item from the "Full Menu". The response should contain nothing but the JSON array. The order of items in the array matters, try to order them by course (appetizer, main, etc.).
+Example response: ["Bruschetta", "Spaghetti Carbonara", "Tiramisu", "Espresso"]
         `;
 
         try {
@@ -36,13 +44,13 @@ Example response: ["Tiramisu", "Bruschetta", "Margherita Pizza"]
                             type: Type.STRING,
                         }
                     },
-                    temperature: 0.7,
+                    temperature: 0.5,
                 }
             });
 
             const resultText = response.text.trim();
             if (!resultText) {
-                console.warn("Gemini API returned an empty response for recommendations.");
+                console.warn("Gemini API returned an empty response for meal plan.");
                 return [];
             }
             
@@ -55,7 +63,7 @@ Example response: ["Tiramisu", "Bruschetta", "Margherita Pizza"]
             
             return [];
         } catch (error) {
-            console.error("Error fetching recommendations from Gemini API:", error);
+            console.error("Error fetching meal plan from Gemini API:", error);
             return []; // Return an empty array on error
         }
     }
