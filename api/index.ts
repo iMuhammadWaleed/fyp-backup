@@ -1,3 +1,4 @@
+
 // This file runs on the server as part of a Vercel Serverless Function.
 // It is not part of the client-side bundle.
 
@@ -39,6 +40,13 @@ const logic = {
             return { success: true, user: userWithoutPassword, message: 'Login successful.' };
         }
         return { success: false, user: null, message: 'Invalid credentials.' };
+    },
+    getUserById: async ({ userId }: any) => {
+        const user = await User.findById(userId).select('-password').lean();
+        if (user) {
+            return { success: true, user: user };
+        }
+        return { success: false, user: null, message: 'User session not found.' };
     },
     resetPassword: async ({ email, newPassword }: any) => {
         await User.updateOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } }, { $set: { password: newPassword } });
@@ -85,6 +93,14 @@ const logic = {
         
         await User.findByIdAndDelete(userId);
         return { success: true, message: successMessage };
+    },
+    updateCart: async ({ userId, cart }: any) => {
+        await User.findByIdAndUpdate(userId, { $set: { cart: cart } });
+        return { success: true, message: 'Cart updated.' };
+    },
+    updateFavorites: async ({ userId, favorites }: any) => {
+        await User.findByIdAndUpdate(userId, { $set: { favorites: favorites } });
+        return { success: true, message: 'Favorites updated.' };
     },
     addMenuItem: async ({ itemData }: any) => {
         const newItem = new MenuItem(itemData);

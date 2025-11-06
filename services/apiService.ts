@@ -1,3 +1,4 @@
+
 import { User, MenuItem, Category, Order, CartItem } from '../types';
 
 export const apiRequest = async (action: string, payload?: any): Promise<any> => {
@@ -30,11 +31,14 @@ export const apiService = {
     // --- Auth ---
     loginUser: (email: string, password?: string) => apiRequest('loginUser', { email, password }),
     resetPassword: (email: string, newPassword: string) => apiRequest('resetPassword', { email, newPassword }),
+    getUserById: (userId: string) => apiRequest('getUserById', { userId }),
 
     // --- Users ---
     addUser: (userData: Omit<User, 'id'>) => apiRequest('addUser', { userData }),
     updateUser: (updatedUser: User) => apiRequest('updateUser', { updatedUser }),
     deleteUser: (userId: string) => apiRequest('deleteUser', { userId }),
+    updateCart: (userId: string, cart: CartItem[]) => apiRequest('updateCart', { userId, cart }),
+    updateFavorites: (userId: string, favorites: string[]) => apiRequest('updateFavorites', { userId, favorites }),
     
     // --- Menu Items ---
     addMenuItem: (itemData: Omit<MenuItem, 'id'>) => apiRequest('addMenuItem', { itemData }),

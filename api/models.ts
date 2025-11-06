@@ -1,3 +1,4 @@
+
 import mongoose, { Schema, model, models, Document, Types } from 'mongoose';
 import { User as UserType, Category as CategoryType, MenuItem as MenuItemType, Order as OrderType, UserRole, CartItem } from '../types';
 
@@ -21,6 +22,25 @@ const schemaOptions = {
     }
 };
 
+// --- MenuItem Schema (needed for CartItem) ---
+const menuItemSchema = new Schema<MenuItemType>({
+    name: { type: String, required: true },
+    description: { type: String, required: true },
+    price: { type: Number, required: true },
+    imageUrl: { type: String, required: true },
+    categoryId: { type: String, required: true },
+    catererId: { type: String, required: true },
+}, { ...schemaOptions, timestamps: true });
+
+// FIX: Add explicit model type to help TypeScript resolve static methods.
+export const MenuItem: mongoose.Model<MenuItemType> = models.MenuItem || model<MenuItemType>('MenuItem', menuItemSchema);
+
+// --- CartItem Sub-schema (embedded in User and Order) ---
+const cartItemSchema = new Schema<CartItem>({
+    item: { type: menuItemSchema, required: true },
+    quantity: { type: Number, required: true },
+}, { _id: false });
+
 
 // --- User Schema ---
 const userSchema = new Schema<UserType>({
@@ -31,12 +51,15 @@ const userSchema = new Schema<UserType>({
     businessName: { type: String },
     businessDescription: { type: String },
     phone: { type: String },
+    favorites: { type: [String], default: [] },
+    cart: { type: [cartItemSchema], default: [] },
 }, { ...schemaOptions, timestamps: true });
 
 // Show password when explicitly requested
 userSchema.pre('findOne', function() { this.select('+password'); });
 
-export const User = models.User || model<UserType>('User', userSchema);
+// FIX: Add explicit model type to help TypeScript resolve static methods.
+export const User: mongoose.Model<UserType> = models.User || model<UserType>('User', userSchema);
 
 
 // --- Category Schema ---
@@ -44,29 +67,11 @@ const categorySchema = new Schema<CategoryType>({
     name: { type: String, required: true, unique: true },
 }, { ...schemaOptions, timestamps: true });
 
-export const Category = models.Category || model<CategoryType>('Category', categorySchema);
-
-
-// --- MenuItem Schema ---
-const menuItemSchema = new Schema<MenuItemType>({
-    name: { type: String, required: true },
-    description: { type: String, required: true },
-    price: { type: Number, required: true },
-    imageUrl: { type: String, required: true },
-    categoryId: { type: String, required: true }, // Using string to match frontend type
-    catererId: { type: String, required: true }, // Using string to match frontend type
-}, { ...schemaOptions, timestamps: true });
-
-export const MenuItem = models.MenuItem || model<MenuItemType>('MenuItem', menuItemSchema);
+// FIX: Add explicit model type to help TypeScript resolve static methods.
+export const Category: mongoose.Model<CategoryType> = models.Category || model<CategoryType>('Category', categorySchema);
 
 
 // --- Order Schema ---
-// We'll define a sub-schema for CartItem to embed it directly
-const cartItemSchema = new Schema<CartItem>({
-    item: { type: menuItemSchema, required: true },
-    quantity: { type: Number, required: true },
-}, { _id: false });
-
 const orderSchema = new Schema<OrderType>({
     userId: { type: String, required: true },
     customerName: { type: String, required: true },
@@ -76,4 +81,5 @@ const orderSchema = new Schema<OrderType>({
     orderDate: { type: String, required: true },
 }, { ...schemaOptions, timestamps: true });
 
-export const Order = models.Order || model<OrderType>('Order', orderSchema);
+// FIX: Add explicit model type to help TypeScript resolve static methods.
+export const Order: mongoose.Model<OrderType> = models.Order || model<OrderType>('Order', orderSchema);

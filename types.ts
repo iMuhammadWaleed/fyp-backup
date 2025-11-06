@@ -15,6 +15,9 @@ export interface User {
     businessName?: string;
     businessDescription?: string;
     phone?: string;
+    // User-specific persistent data
+    favorites?: string[];
+    cart?: CartItem[];
 }
 
 export interface Category {

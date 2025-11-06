@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { User, UserRole, MenuItem, Category, Order, CartItem } from '../types';
 import { apiService } from '../services/apiService';
 import { geminiService } from '../services/geminiService';
@@ -64,25 +64,34 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// Debounce utility to prevent excessive API calls
+const debounce = <F extends (...args: any[]) => any>(func: F, delay: number) => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    return (...args: Parameters<F>): void => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => func(...args), delay);
+    };
+};
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     // --- State ---
     const [isLoading, setIsLoading] = useState(true);
     const [isFetchingRecs, setIsFetchingRecs] = useState(false);
-    const [currentUser, setCurrentUser] = useState<User | null>(() => JSON.parse(localStorage.getItem('currentUser') || 'null'));
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [users, setUsers] = useState<User[]>([]);
     const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [orders, setOrders] = useState<Order[]>([]);
-    const [cart, setCart] = useState<CartItem[]>(() => JSON.parse(localStorage.getItem('cart') || '[]'));
-    const [favorites, setFavorites] = useState<string[]>(() => JSON.parse(localStorage.getItem('favorites') || '[]'));
+    const [cart, setCart] = useState<CartItem[]>([]);
+    const [favorites, setFavorites] = useState<string[]>([]);
     const [mealPlan, setMealPlan] = useState<MenuItem[]>([]);
+    const shouldSync = useRef(false);
 
     // --- Data Fetching ---
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
             const data = await apiService.fetchAllData();
-            // Defensive check to prevent crash if API fails or returns unexpected data
             if (data && Array.isArray(data.users) && Array.isArray(data.menuItems) && Array.isArray(data.categories) && Array.isArray(data.orders)) {
                 setUsers(data.users);
                 setMenuItems(data.menuItems);
@@ -90,11 +99,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 setOrders(data.orders);
             } else {
                 console.error("Failed to fetch initial data or data format is incorrect", data);
-                // Set to empty arrays to ensure app stability
-                setUsers([]);
-                setMenuItems([]);
-                setCategories([]);
-                setOrders([]);
+                setUsers([]); setMenuItems([]); setCategories([]); setOrders([]);
             }
         } catch (error) {
             console.error("Failed to fetch initial data", error);
@@ -103,49 +108,70 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, []);
 
+    // --- App Initialization & Session Management ---
     useEffect(() => {
-        fetchData();
+        const initializeApp = async () => {
+            setIsLoading(true);
+            const userId = sessionStorage.getItem('userId');
+            if (userId) {
+                const result = await apiService.getUserById(userId);
+                if (result.success && result.user) {
+                    setCurrentUser(result.user);
+                    setCart(result.user.cart || []);
+                    setFavorites(result.user.favorites || []);
+                } else {
+                    sessionStorage.removeItem('userId'); // Clean up invalid session
+                }
+            }
+            // Fetch general app data after checking for a session
+            await fetchData();
+            shouldSync.current = true; // Enable DB syncing after initial load
+            setIsLoading(false);
+        };
+        initializeApp();
     }, [fetchData]);
 
-    // --- LocalStorage Effects for Session Data ---
-    useEffect(() => { localStorage.setItem('currentUser', JSON.stringify(currentUser)); }, [currentUser]);
-    useEffect(() => { localStorage.setItem('cart', JSON.stringify(cart)); }, [cart]);
-    useEffect(() => { localStorage.setItem('favorites', JSON.stringify(favorites)); }, [favorites]);
-    
+    // --- Database Sync for Cart & Favorites ---
+    const syncCart = useCallback(debounce(async (userId: string, cartToSync: CartItem[]) => {
+        await apiService.updateCart(userId, cartToSync);
+    }, 1500), []);
+
+    const syncFavorites = useCallback(debounce(async (userId: string, favoritesToSync: string[]) => {
+        await apiService.updateFavorites(userId, favoritesToSync);
+    }, 1500), []);
+
+    useEffect(() => {
+        if (currentUser && shouldSync.current) {
+            syncCart(currentUser.id, cart);
+        }
+    }, [cart, currentUser, syncCart]);
+
+    useEffect(() => {
+        if (currentUser && shouldSync.current) {
+            syncFavorites(currentUser.id, favorites);
+        }
+    }, [favorites, currentUser, syncFavorites]);
+
     // --- AI Meal Planner ---
-    const clearMealPlan = () => {
-        setMealPlan([]);
-    };
+    const clearMealPlan = () => setMealPlan([]);
 
     const generateMealPlan = async (budget: number) => {
-        if (!currentUser || currentUser.role !== UserRole.CUSTOMER || menuItems.length === 0) {
-            return;
-        }
-
+        if (!currentUser || currentUser.role !== UserRole.CUSTOMER || menuItems.length === 0) return;
         setIsFetchingRecs(true);
         try {
             const userOrders = orders.filter(o => o.userId === currentUser.id);
             const favoriteItems = menuItems.filter(item => favorites.includes(item.id));
             const orderedItems = userOrders.flatMap(o => o.items.map(cartItem => cartItem.item));
-            
             const preferredItems = [...favoriteItems, ...orderedItems];
             const uniquePreferredItemNames = [...new Set(preferredItems.map(item => item.name))];
-            
             const potentialMenuItems = menuItems.filter(item => !uniquePreferredItemNames.includes(item.name));
             const menuToRecommendFrom = potentialMenuItems.length > 0 ? potentialMenuItems : menuItems;
-
             const recommendedNames = await geminiService.getMealPlan(uniquePreferredItemNames, menuToRecommendFrom, budget);
-            
-            const recommendedMenuItems = menuItems
-                .filter(item => recommendedNames.includes(item.name))
-                 // Sort based on the order returned by the AI
-                .sort((a, b) => recommendedNames.indexOf(a.name) - recommendedNames.indexOf(b.name));
-            
+            const recommendedMenuItems = menuItems.filter(item => recommendedNames.includes(item.name)).sort((a, b) => recommendedNames.indexOf(a.name) - recommendedNames.indexOf(b.name));
             setMealPlan(recommendedMenuItems);
-
         } catch (error) {
             console.error("Failed to fetch meal plan:", error);
-            setMealPlan([]); // Clear on error
+            setMealPlan([]);
         } finally {
             setIsFetchingRecs(false);
         }
@@ -158,6 +184,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const result = await apiService.loginUser(email, password);
             if (result.success && result.user) {
                 setCurrentUser(result.user);
+                setCart(result.user.cart || []);
+                setFavorites(result.user.favorites || []);
+                sessionStorage.setItem('userId', result.user.id);
             }
             return result;
         } catch (error) {
@@ -169,8 +198,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
     
     const logout = () => {
+        shouldSync.current = false;
         setCurrentUser(null);
+        setCart([]);
+        setFavorites([]);
         setMealPlan([]);
+        sessionStorage.removeItem('userId');
     };
     
     const register = async (userData: Omit<User, 'id'>) => {
@@ -179,6 +212,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const result = await apiService.addUser(userData);
             if (result.success && result.data) {
                 setCurrentUser(result.data);
+                setCart(result.data.cart || []);
+                setFavorites(result.data.favorites || []);
+                sessionStorage.setItem('userId', result.data.id);
                 await fetchData();
             }
             return { success: result.success, message: result.message };
@@ -197,6 +233,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const result = await apiService.addUser(catererData);
             if (result.success && result.data) {
                 setCurrentUser(result.data);
+                setCart(result.data.cart || []);
+                setFavorites(result.data.favorites || []);
+                sessionStorage.setItem('userId', result.data.id);
                 await fetchData();
             }
             return { success: result.success, message: result.message };
@@ -210,15 +249,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const resetPassword = async (email: string, newPassword: string) => {
         setIsLoading(true);
-        try {
-            const result = await apiService.resetPassword(email, newPassword);
-            return result;
-        } catch (error) {
-            console.error("Reset password error:", error);
-            return { success: false, message: "An unexpected error occurred." };
-        } finally {
-            setIsLoading(false);
-        }
+        try { return await apiService.resetPassword(email, newPassword); } 
+        catch (error) { console.error("Reset password error:", error); return { success: false, message: "An unexpected error occurred." }; } 
+        finally { setIsLoading(false); }
     };
 
     // --- Users ---
@@ -257,9 +290,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setIsLoading(true);
         try {
             const result = await apiService.deleteUser(userId);
-            if (result.success) {
-                await fetchData();
-            }
+            if (result.success) await fetchData();
             return result;
         } catch (error) {
             console.error("Delete user error:", error);
@@ -356,9 +387,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setIsLoading(true);
         try {
             const result = await apiService.deleteCategory(categoryId);
-            if (result.success) {
-                await fetchData();
-            }
+            if (result.success) await fetchData();
             return result;
         } catch (error) {
             console.error("Delete category error:", error);
@@ -368,7 +397,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     };
 
-    // --- Cart Management (remains local) ---
+    // --- Cart Management (now local state + DB sync) ---
     const addToCart = (item: MenuItem) => addToCartWithQuantity(item, 1);
     const addToCartWithQuantity = (item: MenuItem, quantity: number) => {
         setCart(prevCart => {
@@ -427,9 +456,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setIsLoading(true);
         try {
             const result = await apiService.deleteOrder(orderId);
-            if (result.success) {
-                await fetchData();
-            }
+            if (result.success) await fetchData();
             return result;
         } catch (error) {
             console.error("Delete order error:", error);
@@ -439,7 +466,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     };
 
-    // --- Favorites Management (remains local) ---
+    // --- Favorites Management (now local state + DB sync) ---
     const toggleFavorite = (itemId: string) => {
         setFavorites(prev => prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]);
     };
@@ -448,7 +475,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // --- Context Value ---
     const value = {
         currentUser, users, menuItems, categories, orders, cart, favorites, mealPlan,
-        isLoading: isLoading || isFetchingRecs, // Combine loading states
+        isLoading: isLoading || isFetchingRecs,
         cartTotal,
         login, logout, register, registerCaterer, resetPassword,
         addUser, updateUser, deleteUser,
