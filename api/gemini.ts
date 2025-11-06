@@ -50,7 +50,7 @@ Example response: ["Bruschetta", "Spaghetti Carbonara", "Tiramisu", "Espresso"]
             }
         });
 
-        const resultText = response.text.trim();
+        const resultText = response.text?.trim() ?? '';
         if (!resultText) {
             console.warn("Gemini API returned an empty response for meal plan.");
             return [];

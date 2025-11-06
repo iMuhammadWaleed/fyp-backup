@@ -1,4 +1,3 @@
-
 {
   "name": "gourmetgo_vercel",
   "version": "1.0.0",
@@ -7,6 +6,7 @@
     "@google/genai": "^1.27.0"
   },
   "devDependencies": {
+    "@types/node": "^20.11.20",
     "typescript": "^5.0.0"
   }
 }
