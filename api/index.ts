@@ -2,6 +2,7 @@
 // It is not part of the client-side bundle.
 
 import { readDb, writeDb, Database } from './db';
+import { getMealPlanFromServer } from './gemini';
 import { User, MenuItem, Category, Order, CartItem, UserRole } from '../types';
 
 // Define types for Vercel's request/response objects to avoid needing @vercel/node
@@ -32,7 +33,9 @@ const logic = {
     loginUser: (db: Database, { email, password }: any) => {
         const user = db.users.find(u => u.email.toLowerCase() === email.toLowerCase());
         if (user && user.password === password) {
-            return { success: true, user, message: 'Login successful.' };
+            // Omit password from the response for security
+            const { password: _, ...userWithoutPassword } = user;
+            return { success: true, user: userWithoutPassword, message: 'Login successful.' };
         }
         return { success: false, user: null, message: 'Invalid credentials.' };
     },
@@ -49,11 +52,13 @@ const logic = {
         }
         const newUser: User = { ...userData, id: `user-${Date.now()}` };
         db.users.push(newUser);
-        return { success: true, data: newUser, message: 'User added.' };
+        const { password: _, ...userWithoutPassword } = newUser;
+        return { success: true, data: userWithoutPassword, message: 'User added.' };
     },
     updateUser: (db: Database, { updatedUser }: any) => {
-        db.users = db.users.map(u => u.id === updatedUser.id ? updatedUser : u);
-        return { success: true, data: updatedUser, message: 'User updated.' };
+        db.users = db.users.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser } : u);
+        const { password: _, ...userWithoutPassword } = updatedUser;
+        return { success: true, data: userWithoutPassword, message: 'User updated.' };
     },
     deleteUser: (db: Database, { userId }: any) => {
         const userToDelete = db.users.find(u => u.id === userId);
@@ -63,7 +68,7 @@ const logic = {
         }
         let successMessage = `User "${userToDelete.name}" deleted successfully.`;
         if (userToDelete.role === UserRole.CATERER) {
-            const fallbackCatererId = 'user-1';
+            const fallbackCatererId = db.users.find(u => u.role === UserRole.ADMIN)?.id || db.users[0].id;
             const itemsToReassign = db.menuItems.filter(item => item.catererId === userId);
             if (itemsToReassign.length > 0) {
                 db.menuItems = db.menuItems.map(item => item.catererId === userId ? { ...item, catererId: fallbackCatererId } : item);
@@ -115,14 +120,9 @@ const logic = {
         db.categories = db.categories.filter(c => c.id !== categoryId);
         return { success: true, message: 'Category deleted and items reassigned.' };
     },
-    placeOrder: (db: Database, { user, cart, total, paymentDetails }: any) => {
+    placeOrder: (db: Database, { user, cart, total }: any) => {
         if (cart.length === 0) return { success: false, data: null, message: 'Cart is empty.' };
-        if (paymentDetails.method === 'credit-card' && paymentDetails.cardNumber?.endsWith('0000')) {
-            return { success: false, data: null, message: 'Your credit card was declined.' };
-        }
-        if (paymentDetails.method === 'jazzcash' && paymentDetails.jazzcashCNIC === '000000') {
-            return { success: false, data: null, message: 'JazzCash payment failed. Please check your details.' };
-        }
+       
         const newOrder: Order = {
             id: `order-${Date.now()}`,
             userId: user.id,
@@ -133,6 +133,7 @@ const logic = {
             orderDate: new Date().toISOString(),
         };
         db.orders.push(newOrder);
+        db.orders.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
         return { success: true, data: newOrder, message: 'Order placed.' };
     },
     updateOrderStatus: (db: Database, { orderId, status }: any) => {
@@ -147,6 +148,10 @@ const logic = {
         db.orders = db.orders.filter(o => o.id !== orderId);
         return { success: true, message: 'Order deleted.' };
     },
+    generateMealPlan: async (db: Database, { preferredItemNames, allMenuItems, budget }: any) => {
+        const recommendedNames = await getMealPlanFromServer(preferredItemNames, allMenuItems, budget);
+        return { success: true, data: recommendedNames };
+    },
 };
 
 const writeActions = new Set([
@@ -160,8 +165,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  const db = await readDb();
   const { action, payload } = req.body;
+  
+  if (!action) {
+      return res.status(400).json({ success: false, message: 'Action not specified.' });
+  }
 
   const actionFunction = (logic as any)[action];
 
@@ -170,15 +178,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const result = actionFunction(db, payload);
+    const db = await readDb();
+    // Pass a copy of the database to the logic function to avoid direct mutation issues
+    const dbCopy = JSON.parse(JSON.stringify(db));
+    const result = await actionFunction(dbCopy, payload);
   
     if (writeActions.has(action) && result.success) {
-      await writeDb(db);
+      // Write the modified copy back to the database
+      await writeDb(dbCopy);
     }
   
     return res.status(200).json(result);
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Error executing action ${action}:`, error);
-    return res.status(500).json({ success: false, message: 'An internal server error occurred.' });
+    return res.status(500).json({ success: false, message: error.message || 'An internal server error occurred.' });
   }
 }

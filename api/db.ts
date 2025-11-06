@@ -16,10 +16,18 @@ export interface Database {
     orders: Order[];
 }
 
+let dbCache: Database | null = null;
+
 export async function readDb(): Promise<Database> {
+    // Use a simple in-memory cache to avoid reading from disk on every request
+    if (dbCache) {
+        return dbCache;
+    }
+
     try {
         const dbJson = await fs.readFile(DB_PATH, 'utf-8');
-        return JSON.parse(dbJson);
+        dbCache = JSON.parse(dbJson);
+        return dbCache as Database;
     } catch (error) {
         // If the file doesn't exist, initialize it with mock data
         console.log('No database file found in /tmp, initializing with mock data.');
@@ -31,10 +39,13 @@ export async function readDb(): Promise<Database> {
         };
         // Persist the initial database
         await fs.writeFile(DB_PATH, JSON.stringify(initialDb, null, 2));
+        dbCache = initialDb;
         return initialDb;
     }
 }
 
 export async function writeDb(data: Database): Promise<void> {
     await fs.writeFile(DB_PATH, JSON.stringify(data, null, 2));
+    // Invalidate the cache whenever we write
+    dbCache = JSON.parse(JSON.stringify(data));
 }

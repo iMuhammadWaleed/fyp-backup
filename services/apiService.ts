@@ -1,6 +1,6 @@
-import { User, MenuItem, Category, Order, CartItem, UserRole } from '../types';
+import { User, MenuItem, Category, Order, CartItem } from '../types';
 
-const apiRequest = async (action: string, payload?: any): Promise<any> => {
+export const apiRequest = async (action: string, payload?: any): Promise<any> => {
     try {
         const response = await fetch('/api', {
             method: 'POST',
