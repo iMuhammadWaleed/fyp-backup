@@ -38,7 +38,7 @@ interface AppContextType {
     deleteMenuItem: (itemId: string) => Promise<{ success: boolean; message: string }>;
 
     // Categories
-    addCategory: (categoryName: string) => Promise<{ success: boolean; message: string }>;
+    addCategory: (categoryName: string) => Promise<{ success: boolean; message:string }>;
     updateCategory: (category: Category) => Promise<{ success: boolean; message: string }>;
     deleteCategory: (categoryId: string) => Promise<{ success: boolean; message: string }>;
 
@@ -82,10 +82,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setIsLoading(true);
         try {
             const data = await apiService.fetchAllData();
-            setUsers(data.users);
-            setMenuItems(data.menuItems);
-            setCategories(data.categories);
-            setOrders(data.orders);
+            // Defensive check to prevent crash if API fails or returns unexpected data
+            if (data && Array.isArray(data.users) && Array.isArray(data.menuItems) && Array.isArray(data.categories) && Array.isArray(data.orders)) {
+                setUsers(data.users);
+                setMenuItems(data.menuItems);
+                setCategories(data.categories);
+                setOrders(data.orders);
+            } else {
+                console.error("Failed to fetch initial data or data format is incorrect", data);
+                // Set to empty arrays to ensure app stability
+                setUsers([]);
+                setMenuItems([]);
+                setCategories([]);
+                setOrders([]);
+            }
         } catch (error) {
             console.error("Failed to fetch initial data", error);
         } finally {
