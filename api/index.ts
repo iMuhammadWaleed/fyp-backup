@@ -1,9 +1,12 @@
 // This file runs on the server as part of a Vercel Serverless Function.
 // It is not part of the client-side bundle.
 
-import { readDb, writeDb, Database } from './db';
+import connectToDatabase from './db';
+import { User, MenuItem, Category, Order } from './models';
 import { getMealPlanFromServer } from './gemini';
-import { User, MenuItem, Category, Order, CartItem, UserRole } from '../types';
+import { User as UserType, MenuItem as MenuItemType, Category as CategoryType, Order as OrderType, UserRole } from '../types';
+import { Types } from 'mongoose';
+
 
 // Define types for Vercel's request/response objects to avoid needing @vercel/node
 interface VercelRequest {
@@ -19,146 +22,150 @@ interface VercelResponse {
   };
 }
 
-// --- Business Logic (moved from original apiService) ---
+// --- Business Logic using Mongoose Models ---
 
 const logic = {
-    fetchAllData: (db: Database) => {
-        return {
-            users: [...db.users],
-            categories: [...db.categories],
-            menuItems: [...db.menuItems],
-            orders: [...db.orders],
-        };
+    fetchAllData: async () => {
+        const users = await User.find({}).select('-password').lean();
+        const categories = await Category.find({}).lean();
+        const menuItems = await MenuItem.find({}).lean();
+        const orders = await Order.find({}).sort({ orderDate: -1 }).lean();
+        return { users, categories, menuItems, orders };
     },
-    loginUser: (db: Database, { email, password }: any) => {
-        const user = db.users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    loginUser: async ({ email, password }: any) => {
+        const user = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } });
         if (user && user.password === password) {
-            // Omit password from the response for security
-            const { password: _, ...userWithoutPassword } = user;
+            const { password: _, ...userWithoutPassword } = user.toObject();
             return { success: true, user: userWithoutPassword, message: 'Login successful.' };
         }
         return { success: false, user: null, message: 'Invalid credentials.' };
     },
-    resetPassword: (db: Database, { email, newPassword }: any) => {
-        const userIndex = db.users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
-        if (userIndex > -1) {
-            db.users[userIndex].password = newPassword;
-        }
+    resetPassword: async ({ email, newPassword }: any) => {
+        await User.updateOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } }, { $set: { password: newPassword } });
         return { success: true, message: 'Password reset successful.' };
     },
-    addUser: (db: Database, { userData }: any) => {
-        if (db.users.some(u => u.email.toLowerCase() === userData.email.toLowerCase())) {
+    addUser: async ({ userData }: any) => {
+        const existingUser = await User.findOne({ email: { $regex: new RegExp(`^${userData.email}$`, 'i') } });
+        if (existingUser) {
             return { success: false, data: null, message: 'An account with this email already exists.' };
         }
-        const newUser: User = { ...userData, id: `user-${Date.now()}` };
-        db.users.push(newUser);
-        const { password: _, ...userWithoutPassword } = newUser;
+        // Mongoose automatically creates the _id, so we don't need a custom one.
+        const newUser = new User(userData);
+        await newUser.save();
+        const { password: _, ...userWithoutPassword } = newUser.toObject();
         return { success: true, data: userWithoutPassword, message: 'User added.' };
     },
-    updateUser: (db: Database, { updatedUser }: any) => {
-        db.users = db.users.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser } : u);
-        const { password: _, ...userWithoutPassword } = updatedUser;
-        return { success: true, data: userWithoutPassword, message: 'User updated.' };
+    updateUser: async ({ updatedUser }: any) => {
+        const { id, ...updateData } = updatedUser;
+        const user = await User.findByIdAndUpdate(id, updateData, { new: true }).select('-password');
+        return { success: true, data: user, message: 'User updated.' };
     },
-    deleteUser: (db: Database, { userId }: any) => {
-        const userToDelete = db.users.find(u => u.id === userId);
+    deleteUser: async ({ userId }: any) => {
+        const userToDelete = await User.findById(userId);
         if (!userToDelete) return { success: false, message: "User not found." };
-        if (userToDelete.role === UserRole.CUSTOMER && db.orders.some(order => order.userId === userId)) {
-            return { success: false, message: `Cannot delete customer "${userToDelete.name}". They have existing order(s).` };
-        }
-        let successMessage = `User "${userToDelete.name}" deleted successfully.`;
-        if (userToDelete.role === UserRole.CATERER) {
-            const fallbackCatererId = db.users.find(u => u.role === UserRole.ADMIN)?.id || db.users[0].id;
-            const itemsToReassign = db.menuItems.filter(item => item.catererId === userId);
-            if (itemsToReassign.length > 0) {
-                db.menuItems = db.menuItems.map(item => item.catererId === userId ? { ...item, catererId: fallbackCatererId } : item);
-                successMessage += `\n${itemsToReassign.length} menu item(s) were reassigned.`;
+
+        if (userToDelete.role === UserRole.CUSTOMER) {
+            const orderCount = await Order.countDocuments({ userId: userToDelete._id });
+            if (orderCount > 0) {
+                 return { success: false, message: `Cannot delete customer "${userToDelete.name}". They have existing order(s).` };
             }
         }
-        db.users = db.users.filter(u => u.id !== userId);
+        
+        let successMessage = `User "${userToDelete.name}" deleted successfully.`;
+        if (userToDelete.role === UserRole.CATERER) {
+             const adminUser = await User.findOne({ role: UserRole.ADMIN });
+             const fallbackCatererId = adminUser ? adminUser._id : (await User.findOne({}))?._id;
+             if(fallbackCatererId){
+                 const updateResult = await MenuItem.updateMany({ catererId: userToDelete._id }, { $set: { catererId: fallbackCatererId } });
+                 if (updateResult.modifiedCount > 0) {
+                     successMessage += `\n${updateResult.modifiedCount} menu item(s) were reassigned.`;
+                 }
+             }
+        }
+        
+        await User.findByIdAndDelete(userId);
         return { success: true, message: successMessage };
     },
-    addMenuItem: (db: Database, { itemData }: any) => {
-        const newItem: MenuItem = { ...itemData, id: `item-${Date.now()}` };
-        db.menuItems.push(newItem);
+    addMenuItem: async ({ itemData }: any) => {
+        const newItem = new MenuItem(itemData);
+        await newItem.save();
         return { success: true, data: newItem, message: 'Item added.' };
     },
-    updateMenuItem: (db: Database, { updatedItem }: any) => {
-        db.menuItems = db.menuItems.map(i => i.id === updatedItem.id ? updatedItem : i);
-        return { success: true, data: updatedItem, message: 'Item updated.' };
+    updateMenuItem: async ({ updatedItem }: any) => {
+        const { id, ...updateData } = updatedItem;
+        const item = await MenuItem.findByIdAndUpdate(id, updateData, { new: true });
+        return { success: true, data: item, message: 'Item updated.' };
     },
-    deleteMenuItem: (db: Database, { itemId }: any) => {
-        const isInOrder = db.orders.some(order => order.items.some(cartItem => cartItem.item.id === itemId));
+    deleteMenuItem: async ({ itemId }: any) => {
+        const isInOrder = await Order.exists({ 'items.item._id': new Types.ObjectId(itemId) });
         if (isInOrder) {
-            const itemName = db.menuItems.find(item => item.id === itemId)?.name || 'the item';
-            return { success: false, message: `Cannot delete "${itemName}" because it is part of existing orders.` };
+            const item = await MenuItem.findById(itemId);
+            return { success: false, message: `Cannot delete "${item?.name || 'the item'}" because it is part of existing orders.` };
         }
-        db.menuItems = db.menuItems.filter(i => i.id !== itemId);
+        await MenuItem.findByIdAndDelete(itemId);
         return { success: true, message: 'Item deleted.' };
     },
-    addCategory: (db: Database, { categoryName }: any) => {
-        if (db.categories.some(c => c.name.toLowerCase() === categoryName.toLowerCase())) {
+    addCategory: async ({ categoryName }: any) => {
+        const existingCategory = await Category.findOne({ name: { $regex: new RegExp(`^${categoryName}$`, 'i') } });
+        if (existingCategory) {
             return { success: false, data: null, message: 'A category with this name already exists.' };
         }
-        const newCategory: Category = { id: `cat-${Date.now()}`, name: categoryName };
-        db.categories.push(newCategory);
+        const newCategory = new Category({ name: categoryName });
+        await newCategory.save();
         return { success: true, data: newCategory, message: 'Category added.' };
     },
-    updateCategory: (db: Database, { updatedCategory }: any) => {
-        if (db.categories.some(c => c.name.toLowerCase() === updatedCategory.name.toLowerCase() && c.id !== updatedCategory.id)) {
+    updateCategory: async ({ updatedCategory }: any) => {
+         const existingCategory = await Category.findOne({ 
+             name: { $regex: new RegExp(`^${updatedCategory.name}$`, 'i') }, 
+             _id: { $ne: updatedCategory.id } 
+         });
+       if (existingCategory) {
            return { success: false, data: null, message: 'Another category with this name already exists.' };
        }
-       db.categories = db.categories.map(c => c.id === updatedCategory.id ? updatedCategory : c);
-       return { success: true, data: updatedCategory, message: 'Category updated.' };
+       const category = await Category.findByIdAndUpdate(updatedCategory.id, { name: updatedCategory.name }, { new: true });
+       return { success: true, data: category, message: 'Category updated.' };
     },
-    deleteCategory: (db: Database, { categoryId }: any) => {
-        const defaultCategory = db.categories[0];
-        if (!defaultCategory || defaultCategory.id === categoryId) {
+    deleteCategory: async ({ categoryId }: any) => {
+        const defaultCategory = await Category.findOne().sort({ createdAt: 1 }); // Assuming first created is default
+        if (!defaultCategory || defaultCategory._id.toString() === categoryId) {
              return { success: false, message: 'Cannot delete the default category.' };
         }
-        db.menuItems = db.menuItems.map(item => item.categoryId === categoryId ? { ...item, categoryId: defaultCategory.id } : item);
-        db.categories = db.categories.filter(c => c.id !== categoryId);
+        await MenuItem.updateMany({ categoryId: categoryId }, { $set: { categoryId: defaultCategory._id } });
+        await Category.findByIdAndDelete(categoryId);
         return { success: true, message: 'Category deleted and items reassigned.' };
     },
-    placeOrder: (db: Database, { user, cart, total }: any) => {
+    placeOrder: async ({ user, cart, total }: any) => {
         if (cart.length === 0) return { success: false, data: null, message: 'Cart is empty.' };
-       
-        const newOrder: Order = {
-            id: `order-${Date.now()}`,
+        
+        const newOrder = new Order({
             userId: user.id,
             customerName: user.name,
-            items: cart,
+            items: cart, // Assuming cart items have the full structure
             total: total,
             status: 'Pending',
             orderDate: new Date().toISOString(),
-        };
-        db.orders.push(newOrder);
-        db.orders.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
-        return { success: true, data: newOrder, message: 'Order placed.' };
+        });
+        await newOrder.save();
+        return { success: true, data: newOrder.toObject(), message: 'Order placed.' };
     },
-    updateOrderStatus: (db: Database, { orderId, status }: any) => {
-        db.orders = db.orders.map(o => o.id === orderId ? { ...o, status } : o);
+    updateOrderStatus: async ({ orderId, status }: any) => {
+        await Order.findByIdAndUpdate(orderId, { $set: { status: status } });
         return { success: true, message: 'Order status updated.' };
     },
-    deleteOrder: (db: Database, { orderId }: any) => {
-        const order = db.orders.find(o => o.id === orderId);
+    deleteOrder: async ({ orderId }: any) => {
+        const order = await Order.findById(orderId);
         if (order && order.status !== 'Delivered' && order.status !== 'Cancelled') {
              return { success: false, message: 'Cannot delete an order that is not completed or cancelled.' };
         }
-        db.orders = db.orders.filter(o => o.id !== orderId);
+        await Order.findByIdAndDelete(orderId);
         return { success: true, message: 'Order deleted.' };
     },
-    generateMealPlan: async (db: Database, { preferredItemNames, allMenuItems, budget }: any) => {
+    generateMealPlan: async ({ preferredItemNames, allMenuItems, budget }: any) => {
         const recommendedNames = await getMealPlanFromServer(preferredItemNames, allMenuItems, budget);
         return { success: true, data: recommendedNames };
     },
 };
 
-const writeActions = new Set([
-    'resetPassword', 'addUser', 'updateUser', 'deleteUser', 'addMenuItem', 'updateMenuItem',
-    'deleteMenuItem', 'addCategory', 'updateCategory', 'deleteCategory', 'placeOrder',
-    'updateOrderStatus', 'deleteOrder'
-]);
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -178,16 +185,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const db = await readDb();
-    // Pass a copy of the database to the logic function to avoid direct mutation issues
-    const dbCopy = JSON.parse(JSON.stringify(db));
-    const result = await actionFunction(dbCopy, payload);
-  
-    if (writeActions.has(action) && result.success) {
-      // Write the modified copy back to the database
-      await writeDb(dbCopy);
-    }
-  
+    await connectToDatabase();
+    const result = await actionFunction(payload);
     return res.status(200).json(result);
   } catch (error: any) {
     console.error(`Error executing action ${action}:`, error);

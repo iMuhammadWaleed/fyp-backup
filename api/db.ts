@@ -1,51 +1,76 @@
 // This file runs on the server as part of a Vercel Serverless Function.
-// It is not part of the client-side bundle.
 
-import { promises as fs } from 'fs';
-import path from 'path';
-import { User, Category, MenuItem, Order } from '../types';
+import mongoose from 'mongoose';
+import { User, Category, MenuItem, Order } from './models';
 import { MOCK_USERS, MOCK_CATEGORIES, MOCK_MENU_ITEMS, MOCK_ORDERS } from '../constants';
 
-// Vercel provides a writable /tmp directory for serverless functions
-const DB_PATH = path.join('/tmp', 'gourmetgo_db.json');
+const MONGODB_URI = process.env.MONGODB_URI;
 
-export interface Database {
-    users: User[];
-    categories: Category[];
-    menuItems: MenuItem[];
-    orders: Order[];
+if (!MONGODB_URI) {
+    throw new Error('Please define the MONGODB_URI environment variable inside .env.local or your Vercel project settings.');
 }
 
-let dbCache: Database | null = null;
+// Mongoose connection caching to improve performance on serverless functions
+let cached = (global as any).mongoose;
 
-export async function readDb(): Promise<Database> {
-    // Use a simple in-memory cache to avoid reading from disk on every request
-    if (dbCache) {
-        return dbCache;
+if (!cached) {
+    cached = (global as any).mongoose = { conn: null, promise: null };
+}
+
+async function connectToDatabase() {
+    if (cached.conn) {
+        return cached.conn;
     }
 
-    try {
-        const dbJson = await fs.readFile(DB_PATH, 'utf-8');
-        dbCache = JSON.parse(dbJson);
-        return dbCache as Database;
-    } catch (error) {
-        // If the file doesn't exist, initialize it with mock data
-        console.log('No database file found in /tmp, initializing with mock data.');
-        const initialDb: Database = {
-            users: JSON.parse(JSON.stringify(MOCK_USERS)),
-            categories: JSON.parse(JSON.stringify(MOCK_CATEGORIES)),
-            menuItems: JSON.parse(JSON.stringify(MOCK_MENU_ITEMS)),
-            orders: JSON.parse(JSON.stringify(MOCK_ORDERS)),
+    if (!cached.promise) {
+        const opts = {
+            bufferCommands: false,
         };
-        // Persist the initial database
-        await fs.writeFile(DB_PATH, JSON.stringify(initialDb, null, 2));
-        dbCache = initialDb;
-        return initialDb;
+
+        cached.promise = mongoose.connect(MONGODB_URI!, opts).then(async (mongoose) => {
+             console.log('New MongoDB connection established.');
+            // Seed the database only if it's empty
+            await seedDatabase();
+            return mongoose;
+        });
+    }
+    cached.conn = await cached.promise;
+    return cached.conn;
+}
+
+// Seed the database with initial mock data if it's empty
+async function seedDatabase() {
+    try {
+        const userCount = await User.countDocuments();
+        if (userCount === 0) {
+            console.log('Seeding database with initial users...');
+            // We need to handle password hashing here if we were using a real auth system.
+            // For now, we'll store them as is from the mock data.
+            await User.insertMany(MOCK_USERS);
+        }
+
+        const categoryCount = await Category.countDocuments();
+        if (categoryCount === 0) {
+            console.log('Seeding database with initial categories...');
+            await Category.insertMany(MOCK_CATEGORIES);
+        }
+
+        const menuItemCount = await MenuItem.countDocuments();
+        if (menuItemCount === 0) {
+            console.log('Seeding database with initial menu items...');
+            await MenuItem.insertMany(MOCK_MENU_ITEMS);
+        }
+        
+        const orderCount = await Order.countDocuments();
+        if (orderCount === 0) {
+            console.log('Seeding database with initial orders...');
+            await Order.insertMany(MOCK_ORDERS);
+        }
+        
+    } catch (error) {
+        console.error('Error seeding database:', error);
     }
 }
 
-export async function writeDb(data: Database): Promise<void> {
-    await fs.writeFile(DB_PATH, JSON.stringify(data, null, 2));
-    // Invalidate the cache whenever we write
-    dbCache = JSON.parse(JSON.stringify(data));
-}
+
+export default connectToDatabase;

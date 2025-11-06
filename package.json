@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "description": "Catering Service System for Vercel",
   "dependencies": {
-    "@google/genai": "^1.27.0"
+    "@google/genai": "^1.27.0",
+    "mongoose": "^8.5.1"
   },
   "devDependencies": {
-    "@types/node": "^20.11.20",
+    "@types/node": "^20.14.10",
     "typescript": "^5.0.0"
   }
 }
