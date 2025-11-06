@@ -1,6 +1,6 @@
 
 {
-  "name": "gourmetgo-vercel",
+  "name": "gourmetgo_vercel",
   "version": "1.0.0",
   "description": "Catering Service System for Vercel",
   "dependencies": {
