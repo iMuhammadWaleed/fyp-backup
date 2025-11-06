@@ -49,7 +49,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
                 <h3 className="text-xl font-semibold mb-2 group-hover:text-teal-600 transition-colors flex-grow">{item.name}</h3>
                 <p className="text-gray-600 mb-4 h-12 overflow-hidden text-sm">{item.description.substring(0, 70)}...</p>
                 <div className="flex justify-between items-center mt-auto">
-                    <span className="text-2xl font-bold text-teal-600">${item.price.toFixed(2)}</span>
+                    <span className="text-2xl font-bold text-teal-600">PKR {item.price.toFixed(2)}</span>
                     <span className="text-teal-500 font-semibold text-sm">View Details &rarr;</span>
                 </div>
             </div>

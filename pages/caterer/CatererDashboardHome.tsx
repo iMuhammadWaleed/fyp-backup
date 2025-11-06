@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import * as ReactRouterDOM from 'react-router-dom';
@@ -79,7 +80,7 @@ const CatererDashboardHome: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                  <StatCard 
                     title="Total Revenue"
-                    value={`$${totalRevenue.toFixed(2)}`}
+                    value={`PKR ${totalRevenue.toFixed(2)}`}
                     icon={<RevenueIcon />}
                     colorClass="bg-green-100"
                 />

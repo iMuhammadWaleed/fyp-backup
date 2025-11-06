@@ -57,7 +57,7 @@ const MenuItemDetailPage: React.FC = () => {
                         <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Provided by {caterer?.businessName || 'GourmetGo'}</p>
                         <h1 className="text-4xl font-bold mb-4">{item.name}</h1>
                         <p className="text-gray-600 mb-6 text-lg">{item.description}</p>
-                        <span className="text-4xl font-bold text-teal-600 mb-6">${item.price.toFixed(2)}</span>
+                        <span className="text-4xl font-bold text-teal-600 mb-6">PKR {item.price.toFixed(2)}</span>
                         
                         <div className="flex items-center space-x-4 mb-6">
                             <label htmlFor="quantity" className="font-semibold text-lg">Quantity:</label>

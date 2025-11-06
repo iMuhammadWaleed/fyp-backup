@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { Order } from '../../types';
@@ -130,15 +131,15 @@ const CatererOrderManagement: React.FC = () => {
                                                             <li key={item.id} className="py-2 flex justify-between items-center">
                                                                 <div>
                                                                     <span className="font-semibold text-gray-800">{item.name}</span>
-                                                                    <span className="text-sm text-gray-500 ml-2">({quantity} x ${item.price.toFixed(2)})</span>
+                                                                    <span className="text-sm text-gray-500 ml-2">({quantity} x PKR {item.price.toFixed(2)})</span>
                                                                 </div>
-                                                                <span className="font-semibold text-gray-800">${(item.price * quantity).toFixed(2)}</span>
+                                                                <span className="font-semibold text-gray-800">PKR {(item.price * quantity).toFixed(2)}</span>
                                                             </li>
                                                         ))}
                                                     </ul>
                                                     <div className="flex justify-end font-bold text-lg mt-3 pt-3 border-t">
                                                         <span>Your Subtotal:</span>
-                                                        <span className="ml-4">${calculateMySubtotal(order).toFixed(2)}</span>
+                                                        <span className="ml-4">PKR {calculateMySubtotal(order).toFixed(2)}</span>
                                                     </div>
                                                 </div>
                                             </td>

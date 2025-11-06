@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 // FIX: Use namespace import for react-router-dom to resolve module export errors.
 import * as ReactRouterDOM from 'react-router-dom';
@@ -114,16 +115,16 @@ const HomePage: React.FC = () => {
                         <div className="max-w-xl mx-auto bg-white/60 backdrop-blur-md p-6 rounded-xl shadow-lg border border-white/50">
                             <form onSubmit={handleGeneratePlan} className="flex flex-col sm:flex-row items-center gap-4">
                                 <div className="relative flex-grow w-full">
-                                    <span className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500 text-lg">$</span>
+                                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500 text-lg">PKR</span>
                                     <input
                                         type="number"
                                         value={budget}
                                         onChange={(e) => { setBudget(e.target.value); setPlanGenerated(false); }}
-                                        placeholder="Enter your budget (e.g., 50)"
+                                        placeholder="Enter your budget (e.g., 5000)"
                                         min="10"
                                         step="1"
                                         required
-                                        className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 text-lg"
+                                        className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 text-lg"
                                         aria-label="Budget for meal plan"
                                     />
                                 </div>
@@ -166,7 +167,7 @@ const HomePage: React.FC = () => {
                                 </div>
                                 <div className="mt-10 pt-8 border-t-2 border-dashed border-teal-200 flex flex-col items-center gap-4">
                                     <div className="text-3xl font-bold text-center">
-                                        Plan Total: <span className="text-green-600">${mealPlanTotal.toFixed(2)}</span>
+                                        Plan Total: <span className="text-green-600">PKR {mealPlanTotal.toFixed(2)}</span>
                                     </div>
                                     <button
                                         onClick={handleAddPlanToCart}

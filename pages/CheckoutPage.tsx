@@ -231,7 +231,7 @@ const CheckoutPage: React.FC = () => {
                         type="submit"
                         disabled={isProcessing}
                         className="w-full bg-green-500 text-white px-8 py-3 rounded-md font-semibold text-lg hover:bg-green-600 disabled:bg-gray-400 flex items-center justify-center">
-                        {isProcessing ? 'Processing...' : `Place Order - $${(cartTotal + 5).toFixed(2)}`}
+                        {isProcessing ? 'Processing...' : `Place Order - PKR ${(cartTotal + 250).toFixed(2)}`}
                     </button>
                      <ReactRouterDOM.Link to="/cart" className="text-center block mt-2 text-teal-600 hover:underline text-sm">
                         &larr; Back to Cart
@@ -257,22 +257,22 @@ const CheckoutPage: React.FC = () => {
                                             <p className="text-xs text-gray-500">Qty: {quantity}</p>
                                         </div>
                                     </div>
-                                    <p className="font-medium text-sm">${(item.price * quantity).toFixed(2)}</p>
+                                    <p className="font-medium text-sm">PKR {(item.price * quantity).toFixed(2)}</p>
                                 </div>
                             ))}
                         </div>
                         <div className="mt-4 border-t pt-4 space-y-2">
                             <div className="flex justify-between text-gray-600">
                                 <span>Subtotal</span>
-                                <span>${cartTotal.toFixed(2)}</span>
+                                <span>PKR {cartTotal.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between text-gray-600">
                                 <span>Shipping</span>
-                                <span>$5.00</span>
+                                <span>PKR 250.00</span>
                             </div>
                             <div className="flex justify-between font-bold text-xl mt-2 pt-2 border-t">
                                 <span>Total</span>
-                                <span>${(cartTotal + 5).toFixed(2)}</span>
+                                <span>PKR {(cartTotal + 250).toFixed(2)}</span>
                             </div>
                         </div>
                     </div>

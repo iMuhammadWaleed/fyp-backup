@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useAppContext } from '../context/AppContext';
 // FIX: Use namespace import for react-router-dom to resolve module export errors.
@@ -44,7 +45,7 @@ const OrdersPage: React.FC = () => {
                                 </div>
                                 <div className="text-right">
                                     <span className={`px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(order.status)}`}>{order.status}</span>
-                                    <p className="text-lg font-bold mt-2">Total: ${order.total.toFixed(2)}</p>
+                                    <p className="text-lg font-bold mt-2">Total: PKR {order.total.toFixed(2)}</p>
                                 </div>
                             </div>
                             <div className="mt-4 border-t pt-4">

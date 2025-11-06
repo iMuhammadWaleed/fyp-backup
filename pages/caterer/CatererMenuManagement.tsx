@@ -57,7 +57,7 @@ const CatererMenuManagement: React.FC = () => {
                                 </td>
                                 <td className="py-3 px-4">{item.name}</td>
                                 <td className="py-3 px-4">{categories.find(c => c.id === item.categoryId)?.name}</td>
-                                <td className="py-3 px-4">${item.price.toFixed(2)}</td>
+                                <td className="py-3 px-4">PKR {item.price.toFixed(2)}</td>
                                 <td className="py-3 px-4">
                                     <button onClick={() => openModal(item)} className="text-teal-600 hover:text-teal-900 mr-4">Edit</button>
                                     <button onClick={() => handleDelete(item.id)} className="text-red-600 hover:text-red-900 disabled:text-gray-400" disabled={isLoading}>Delete</button>

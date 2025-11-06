@@ -100,7 +100,7 @@ const AdminOrderManagement: React.FC = () => {
                                         <td className="py-3 px-4">#{order.id.slice(-6)}</td>
                                         <td className="py-3 px-4">{order.customerName}</td>
                                         <td className="py-3 px-4">{new Date(order.orderDate).toLocaleDateString()}</td>
-                                        <td className="py-3 px-4">${order.total.toFixed(2)}</td>
+                                        <td className="py-3 px-4">PKR {order.total.toFixed(2)}</td>
                                         <td className="py-3 px-4">
                                              <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status)}`}>{order.status}</span>
                                         </td>
@@ -142,9 +142,9 @@ const AdminOrderManagement: React.FC = () => {
                                                             <li key={item.id} className="py-2 flex justify-between items-center">
                                                                 <div>
                                                                     <span className="font-semibold text-gray-800">{item.name}</span>
-                                                                    <span className="text-sm text-gray-500 ml-2">({quantity} x ${item.price.toFixed(2)})</span>
+                                                                    <span className="text-sm text-gray-500 ml-2">({quantity} x PKR {item.price.toFixed(2)})</span>
                                                                 </div>
-                                                                <span className="font-semibold text-gray-800">${(item.price * quantity).toFixed(2)}</span>
+                                                                <span className="font-semibold text-gray-800">PKR {(item.price * quantity).toFixed(2)}</span>
                                                             </li>
                                                         ))}
                                                     </ul>

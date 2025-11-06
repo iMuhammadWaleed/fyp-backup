@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 // FIX: Use namespace import for react-router-dom to resolve module export errors.
 import * as ReactRouterDOM from 'react-router-dom';
@@ -54,10 +55,10 @@ const OrderConfirmationPage: React.FC = () => {
                                 <div>
                                     <p className="font-semibold">{item.name}</p>
                                     <p className="text-sm text-gray-500">
-                                        {quantity} x ${item.price.toFixed(2)}
+                                        {quantity} x PKR {item.price.toFixed(2)}
                                     </p>
                                 </div>
-                                <p className="font-semibold">${(item.price * quantity).toFixed(2)}</p>
+                                <p className="font-semibold">PKR {(item.price * quantity).toFixed(2)}</p>
                             </div>
                         ))}
                     </div>
@@ -65,15 +66,15 @@ const OrderConfirmationPage: React.FC = () => {
                     <div className="border-t pt-4 space-y-2">
                         <div className="flex justify-between text-gray-600">
                             <span>Subtotal</span>
-                            <span>${order.total.toFixed(2)}</span>
+                            <span>PKR {order.total.toFixed(2)}</span>
                         </div>
                          <div className="flex justify-between text-gray-600">
                             <span>Shipping</span>
-                            <span>$5.00</span>
+                            <span>PKR 250.00</span>
                         </div>
                         <div className="flex justify-between font-bold text-xl mt-2">
                             <span>Total</span>
-                            <span>${(order.total + 5).toFixed(2)}</span>
+                            <span>PKR {(order.total + 250).toFixed(2)}</span>
                         </div>
                     </div>
                 </div>
