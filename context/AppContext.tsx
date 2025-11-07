@@ -1,8 +1,7 @@
-
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { User, UserRole, MenuItem, Category, Order, CartItem } from '../types';
-import { apiService } from '../services/apiService';
 import { geminiService } from '../services/geminiService';
+import { MOCK_USERS, MOCK_CATEGORIES, MOCK_MENU_ITEMS, MOCK_ORDERS } from '../constants';
 
 interface AppContextType {
     // State
@@ -64,15 +63,6 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// Debounce utility to prevent excessive API calls
-const debounce = <F extends (...args: any[]) => any>(func: F, delay: number) => {
-    let timeoutId: ReturnType<typeof setTimeout>;
-    return (...args: Parameters<F>): void => {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => func(...args), delay);
-    };
-};
-
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     // --- State ---
     const [isLoading, setIsLoading] = useState(true);
@@ -85,72 +75,59 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [cart, setCart] = useState<CartItem[]>([]);
     const [favorites, setFavorites] = useState<string[]>([]);
     const [mealPlan, setMealPlan] = useState<MenuItem[]>([]);
-    const shouldSync = useRef(false);
 
-    // --- Data Fetching ---
-    const fetchData = useCallback(async () => {
+    // --- Data Loading from Local Storage ---
+    useEffect(() => {
         setIsLoading(true);
         try {
-            const data = await apiService.fetchAllData();
-            if (data && Array.isArray(data.users) && Array.isArray(data.menuItems) && Array.isArray(data.categories) && Array.isArray(data.orders)) {
-                setUsers(data.users);
-                setMenuItems(data.menuItems);
-                setCategories(data.categories);
-                setOrders(data.orders);
+            const db = localStorage.getItem('gourmetgo_db');
+            let data;
+            if (db) {
+                data = JSON.parse(db);
             } else {
-                console.error("Failed to fetch initial data or data format is incorrect", data);
-                setUsers([]); setMenuItems([]); setCategories([]); setOrders([]);
+                data = {
+                    users: MOCK_USERS,
+                    menuItems: MOCK_MENU_ITEMS,
+                    categories: MOCK_CATEGORIES,
+                    orders: MOCK_ORDERS,
+                };
+            }
+            setUsers(data.users || []);
+            setMenuItems(data.menuItems || []);
+            setCategories(data.categories || []);
+            setOrders(data.orders || []);
+            
+            // Session Management
+            const userId = sessionStorage.getItem('userId');
+            if (userId) {
+                const user = data.users.find((u: User) => u.id === userId);
+                if (user) {
+                    setCurrentUser(user);
+                    setCart(user.cart || []);
+                    setFavorites(user.favorites || []);
+                } else {
+                    sessionStorage.removeItem('userId'); // Clean up invalid session
+                }
             }
         } catch (error) {
-            console.error("Failed to fetch initial data", error);
+            console.error("Failed to load data from local storage", error);
         } finally {
             setIsLoading(false);
         }
     }, []);
 
-    // --- App Initialization & Session Management ---
+    // --- Data Persistence to Local Storage ---
     useEffect(() => {
-        const initializeApp = async () => {
-            setIsLoading(true);
-            const userId = sessionStorage.getItem('userId');
-            if (userId) {
-                const result = await apiService.getUserById(userId);
-                if (result.success && result.user) {
-                    setCurrentUser(result.user);
-                    setCart(result.user.cart || []);
-                    setFavorites(result.user.favorites || []);
-                } else {
-                    sessionStorage.removeItem('userId'); // Clean up invalid session
-                }
-            }
-            // Fetch general app data after checking for a session
-            await fetchData();
-            shouldSync.current = true; // Enable DB syncing after initial load
-            setIsLoading(false);
-        };
-        initializeApp();
-    }, [fetchData]);
+        if (!isLoading) {
+            // Update user-specific data (cart/favorites) within the main users array for persistence
+            const updatedUsers = currentUser 
+                ? users.map(u => u.id === currentUser.id ? { ...u, cart, favorites } : u)
+                : users;
 
-    // --- Database Sync for Cart & Favorites ---
-    const syncCart = useCallback(debounce(async (userId: string, cartToSync: CartItem[]) => {
-        await apiService.updateCart(userId, cartToSync);
-    }, 1500), []);
-
-    const syncFavorites = useCallback(debounce(async (userId: string, favoritesToSync: string[]) => {
-        await apiService.updateFavorites(userId, favoritesToSync);
-    }, 1500), []);
-
-    useEffect(() => {
-        if (currentUser && shouldSync.current) {
-            syncCart(currentUser.id, cart);
+            const db = { users: updatedUsers, menuItems, categories, orders };
+            localStorage.setItem('gourmetgo_db', JSON.stringify(db));
         }
-    }, [cart, currentUser, syncCart]);
-
-    useEffect(() => {
-        if (currentUser && shouldSync.current) {
-            syncFavorites(currentUser.id, favorites);
-        }
-    }, [favorites, currentUser, syncFavorites]);
+    }, [users, menuItems, categories, orders, cart, favorites, currentUser, isLoading]);
 
     // --- AI Meal Planner ---
     const clearMealPlan = () => setMealPlan([]);
@@ -179,26 +156,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // --- Auth ---
     const login = async (email: string, password?: string) => {
-        setIsLoading(true);
-        try {
-            const result = await apiService.loginUser(email, password);
-            if (result.success && result.user) {
-                setCurrentUser(result.user);
-                setCart(result.user.cart || []);
-                setFavorites(result.user.favorites || []);
-                sessionStorage.setItem('userId', result.user.id);
-            }
-            return result;
-        } catch (error) {
-            console.error("Login error:", error);
-            return { success: false, user: null, message: "An unexpected error occurred." };
-        } finally {
-            setIsLoading(false);
+        const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+        if (user) {
+            setCurrentUser(user);
+            setCart(user.cart || []);
+            setFavorites(user.favorites || []);
+            sessionStorage.setItem('userId', user.id);
+            return { success: true, user, message: 'Login successful.' };
         }
+        return { success: false, user: null, message: 'Invalid email or password.' };
     };
     
     const logout = () => {
-        shouldSync.current = false;
         setCurrentUser(null);
         setCart([]);
         setFavorites([]);
@@ -207,197 +176,126 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
     
     const register = async (userData: Omit<User, 'id'>) => {
-        setIsLoading(true);
-        try {
-            const result = await apiService.addUser(userData);
-            if (result.success && result.data) {
-                setCurrentUser(result.data);
-                setCart(result.data.cart || []);
-                setFavorites(result.data.favorites || []);
-                sessionStorage.setItem('userId', result.data.id);
-                await fetchData();
-            }
-            return { success: result.success, message: result.message };
-        } catch (error) {
-            console.error("Registration error:", error);
-            return { success: false, message: "An unexpected error occurred." };
-        } finally {
-            setIsLoading(false);
+        const existingUser = users.find(u => u.email.toLowerCase() === userData.email.toLowerCase());
+        if (existingUser) {
+            return { success: false, message: 'An account with this email already exists.' };
         }
+        const newUser: User = { ...userData, id: `user-${Date.now()}` };
+        setUsers(prev => [...prev, newUser]);
+        await login(newUser.email, newUser.password);
+        return { success: true, message: 'Registration successful.' };
     };
 
     const registerCaterer = async (data: Omit<User, 'id' | 'role'>) => {
-        setIsLoading(true);
-        try {
-            const catererData = { ...data, role: UserRole.CATERER };
-            const result = await apiService.addUser(catererData);
-            if (result.success && result.data) {
-                setCurrentUser(result.data);
-                setCart(result.data.cart || []);
-                setFavorites(result.data.favorites || []);
-                sessionStorage.setItem('userId', result.data.id);
-                await fetchData();
-            }
-            return { success: result.success, message: result.message };
-        } catch (error) {
-            console.error("Caterer registration error:", error);
-            return { success: false, message: "An unexpected error occurred." };
-        } finally {
-            setIsLoading(false);
-        }
+        const catererData = { ...data, role: UserRole.CATERER };
+        return register(catererData);
     };
 
     const resetPassword = async (email: string, newPassword: string) => {
-        setIsLoading(true);
-        try { return await apiService.resetPassword(email, newPassword); } 
-        catch (error) { console.error("Reset password error:", error); return { success: false, message: "An unexpected error occurred." }; } 
-        finally { setIsLoading(false); }
+        let userFound = false;
+        setUsers(prev => prev.map(user => {
+            if (user.email.toLowerCase() === email.toLowerCase()) {
+                userFound = true;
+                return { ...user, password: newPassword };
+            }
+            return user;
+        }));
+        return userFound 
+            ? { success: true, message: 'Password reset successful.' }
+            : { success: false, message: 'User not found.' };
     };
 
     // --- Users ---
     const addUser = async (userData: Omit<User, 'id'>) => {
-        setIsLoading(true);
-        try {
-            const result = await apiService.addUser(userData);
-            if (result.success) await fetchData();
-            return { success: result.success, message: result.message };
-        } catch (error) {
-            console.error("Add user error:", error);
-            return { success: false, message: "An unexpected error occurred." };
-        } finally {
-            setIsLoading(false);
+        const existingUser = users.find(u => u.email.toLowerCase() === userData.email.toLowerCase());
+        if (existingUser) {
+            return { success: false, message: 'An account with this email already exists.' };
         }
+        const newUser: User = { ...userData, id: `user-${Date.now()}` };
+        setUsers(prev => [...prev, newUser]);
+        return { success: true, message: 'User added successfully.' };
     };
 
     const updateUser = async (updatedUser: User) => {
-        setIsLoading(true);
-        try {
-            const result = await apiService.updateUser(updatedUser);
-            if (result.success) {
-                if (currentUser?.id === updatedUser.id) setCurrentUser(updatedUser);
-                await fetchData();
-            }
-            return { success: result.success, message: result.message };
-        } catch (error) {
-            console.error("Update user error:", error);
-            return { success: false, message: "An unexpected error occurred." };
-        } finally {
-            setIsLoading(false);
+        setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+        if (currentUser?.id === updatedUser.id) {
+            setCurrentUser(updatedUser);
         }
+        return { success: true, message: 'User updated successfully.' };
     };
 
     const deleteUser = async (userId: string) => {
-        setIsLoading(true);
-        try {
-            const result = await apiService.deleteUser(userId);
-            if (result.success) await fetchData();
-            return result;
-        } catch (error) {
-            console.error("Delete user error:", error);
-            return { success: false, message: "An unexpected error occurred." };
-        } finally {
-            setIsLoading(false);
+        const userToDelete = users.find(u => u.id === userId);
+        if (!userToDelete) return { success: false, message: 'User not found.' };
+
+        // Prevent deletion if customer has orders
+        if (userToDelete.role === UserRole.CUSTOMER) {
+            if (orders.some(o => o.userId === userId)) {
+                return { success: false, message: `Cannot delete customer "${userToDelete.name}" as they have existing orders.` };
+            }
         }
+        
+        setUsers(prev => prev.filter(u => u.id !== userId));
+        return { success: true, message: 'User deleted successfully.' };
     };
     
     // --- Menu Items ---
     const addMenuItem = async (itemData: Omit<MenuItem, 'id'>) => {
-        setIsLoading(true);
-        try {
-            const result = await apiService.addMenuItem(itemData);
-            if(result.success) await fetchData();
-            return { success: result.success, message: result.message };
-        } catch (error) {
-            console.error("Add menu item error:", error);
-            return { success: false, message: "An unexpected error occurred." };
-        } finally {
-            setIsLoading(false);
-        }
+        const newItem: MenuItem = { ...itemData, id: `item-${Date.now()}` };
+        setMenuItems(prev => [...prev, newItem]);
+        return { success: true, message: 'Item added successfully.' };
     };
 
     const updateMenuItem = async (updatedItem: MenuItem) => {
-        setIsLoading(true);
-        try {
-            const result = await apiService.updateMenuItem(updatedItem);
-            if (result.success) {
-                setCart(prevCart => prevCart.map(cartItem => 
-                    cartItem.item.id === updatedItem.id 
-                        ? { ...cartItem, item: updatedItem }
-                        : cartItem
-                ));
-                await fetchData();
-            }
-            return { success: result.success, message: result.message };
-        } catch (error) {
-            console.error("Update menu item error:", error);
-            return { success: false, message: "An unexpected error occurred." };
-        } finally {
-            setIsLoading(false);
-        }
+        setMenuItems(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
+        // Also update the item if it's in the cart
+        setCart(prevCart => prevCart.map(cartItem => 
+            cartItem.item.id === updatedItem.id 
+                ? { ...cartItem, item: updatedItem }
+                : cartItem
+        ));
+        return { success: true, message: 'Item updated successfully.' };
     };
 
     const deleteMenuItem = async (itemId: string) => {
-        setIsLoading(true);
-        try {
-            const result = await apiService.deleteMenuItem(itemId);
-            if (result.success) {
-                await fetchData();
-                setCart(prev => prev.filter(cartItem => cartItem.item.id !== itemId));
-                setFavorites(prev => prev.filter(id => id !== itemId));
-            }
-            return result;
-        } catch (error) {
-            console.error("Delete menu item error:", error);
-            return { success: false, message: "An unexpected error occurred." };
-        } finally {
-            setIsLoading(false);
-        }
+        setMenuItems(prev => prev.filter(item => item.id !== itemId));
+        setCart(prev => prev.filter(cartItem => cartItem.item.id !== itemId));
+        setFavorites(prev => prev.filter(id => id !== itemId));
+        return { success: true, message: 'Item deleted successfully.' };
     };
 
     // --- Categories ---
     const addCategory = async (categoryName: string) => {
-        setIsLoading(true);
-        try {
-            const result = await apiService.addCategory(categoryName);
-            if (result.success) await fetchData();
-            return { success: result.success, message: result.message };
-        } catch (error) {
-            console.error("Add category error:", error);
-            return { success: false, message: "An unexpected error occurred." };
-        } finally {
-            setIsLoading(false);
+        const existingCategory = categories.find(c => c.name.toLowerCase() === categoryName.toLowerCase());
+        if (existingCategory) {
+            return { success: false, message: 'A category with this name already exists.' };
         }
+        const newCategory: Category = { name: categoryName, id: `cat-${Date.now()}` };
+        setCategories(prev => [...prev, newCategory]);
+        return { success: true, message: 'Category added successfully.' };
     };
 
     const updateCategory = async (updatedCategory: Category) => {
-        setIsLoading(true);
-        try {
-            const result = await apiService.updateCategory(updatedCategory);
-            if (result.success) await fetchData();
-            return result;
-        } catch (error) {
-            console.error("Update category error:", error);
-            return { success: false, message: "An unexpected error occurred." };
-        } finally {
-            setIsLoading(false);
+        const existingCategory = categories.find(c => c.name.toLowerCase() === updatedCategory.name.toLowerCase() && c.id !== updatedCategory.id);
+        if (existingCategory) {
+            return { success: false, message: 'Another category with this name already exists.' };
         }
+        setCategories(prev => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c));
+        return { success: true, message: 'Category updated successfully.' };
     };
 
     const deleteCategory = async (categoryId: string) => {
-        setIsLoading(true);
-        try {
-            const result = await apiService.deleteCategory(categoryId);
-            if (result.success) await fetchData();
-            return result;
-        } catch (error) {
-            console.error("Delete category error:", error);
-            return { success: false, message: "An unexpected error occurred." };
-        } finally {
-            setIsLoading(false);
+        if (categories.length <= 1) {
+            return { success: false, message: 'Cannot delete the last category.' };
         }
+        const defaultCategory = categories.find(c => c.id !== categoryId);
+        // Re-assign menu items to a default category
+        setMenuItems(prev => prev.map(item => item.categoryId === categoryId ? { ...item, categoryId: defaultCategory!.id } : item));
+        setCategories(prev => prev.filter(c => c.id !== categoryId));
+        return { success: true, message: 'Category deleted.' };
     };
 
-    // --- Cart Management (now local state + DB sync) ---
+    // --- Cart Management ---
     const addToCart = (item: MenuItem) => addToCartWithQuantity(item, 1);
     const addToCartWithQuantity = (item: MenuItem, quantity: number) => {
         setCart(prevCart => {
@@ -422,51 +320,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // --- Orders ---
     const placeOrder = async (paymentDetails: { method: string; [key: string]: any; }) => {
         if (!currentUser) return { success: false, error: 'User not logged in.' };
-        setIsLoading(true);
-        try {
-            const result = await apiService.placeOrder(currentUser, cart, cartTotal, paymentDetails);
-            if (result.success) {
-                clearCart();
-                await fetchData();
-            }
-            return { success: result.success, order: result.data, error: result.message };
-        } catch (error) {
-            console.error("Place order error:", error);
-            return { success: false, error: "An unexpected error occurred." };
-        } finally {
-            setIsLoading(false);
-        }
+        if (cart.length === 0) return { success: false, error: 'Cart is empty.' };
+        
+        const newOrder: Order = {
+            id: `order-${Date.now()}`,
+            userId: currentUser.id,
+            items: cart,
+            total: cartTotal,
+            status: 'Pending',
+            orderDate: new Date().toISOString(),
+            customerName: currentUser.name,
+        };
+
+        setOrders(prev => [...prev, newOrder]);
+        clearCart();
+        return { success: true, order: newOrder };
     };
 
     const updateOrderStatus = async (orderId: string, status: Order['status']) => {
-        setIsLoading(true);
-        try {
-            const result = await apiService.updateOrderStatus(orderId, status);
-            if (result.success) await fetchData();
-            return result;
-        } catch (error) {
-            console.error("Update order status error:", error);
-            return { success: false, message: "An unexpected error occurred." };
-        } finally {
-            setIsLoading(false);
-        }
+        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
+        return { success: true, message: 'Order status updated.' };
     };
 
     const deleteOrder = async (orderId: string) => {
-        setIsLoading(true);
-        try {
-            const result = await apiService.deleteOrder(orderId);
-            if (result.success) await fetchData();
-            return result;
-        } catch (error) {
-            console.error("Delete order error:", error);
-            return { success: false, message: "An unexpected error occurred." };
-        } finally {
-            setIsLoading(false);
-        }
+        setOrders(prev => prev.filter(o => o.id !== orderId));
+        return { success: true, message: 'Order deleted.' };
     };
 
-    // --- Favorites Management (now local state + DB sync) ---
+    // --- Favorites Management ---
     const toggleFavorite = (itemId: string) => {
         setFavorites(prev => prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]);
     };
