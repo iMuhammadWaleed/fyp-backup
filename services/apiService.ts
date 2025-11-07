@@ -1,9 +1,10 @@
-
 import { User, MenuItem, Category, Order, CartItem } from '../types';
+
+const API_BASE_URL = 'http://localhost:4000';
 
 export const apiRequest = async (action: string, payload?: any): Promise<any> => {
     try {
-        const response = await fetch('/api', {
+        const response = await fetch(`${API_BASE_URL}/api`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -20,7 +21,7 @@ export const apiRequest = async (action: string, payload?: any): Promise<any> =>
         return await response.json();
     } catch (error) {
         console.error(`API request failed for action: ${action}`, error);
-        return { success: false, data: null, message: 'Network error or server is not responding.' };
+        return { success: false, data: null, message: 'Could not connect to the server. Is it running?' };
     }
 };
 
