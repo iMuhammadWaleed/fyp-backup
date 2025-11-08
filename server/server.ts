@@ -7,6 +7,9 @@ import path from 'path';
 // Load environment variables from .env file in the root directory
 dotenv.config();
 
+// FIX: Import 'process' to provide correct typings for process.cwd().
+import process from 'process';
+
 import connectToDatabase from './db';
 import { User, MenuItem, Category, Order } from './models';
 import { getMealPlanFromServer } from './gemini';
@@ -68,4 +71,152 @@ const logic = {
         const user = await User.findByIdAndUpdate(id, updateData, { new: true }).select('-password');
         return { success: true, data: user, message: 'User updated.' };
     },
-    deleteUser: async ({ userId }: any
+    deleteUser: async ({ userId }: any) => {
+        const userToDelete = await User.findById(userId);
+        if (!userToDelete) return { success: false, message: "User not found." };
+
+        if (userToDelete.role === UserRole.CUSTOMER) {
+            const orderCount = await Order.countDocuments({ userId: userToDelete._id });
+            if (orderCount > 0) {
+                 return { success: false, message: `Cannot delete customer "${userToDelete.name}". They have existing order(s).` };
+            }
+        }
+        
+        let successMessage = `User "${userToDelete.name}" deleted successfully.`;
+        if (userToDelete.role === UserRole.CATERER) {
+             const adminUser = await User.findOne({ role: UserRole.ADMIN });
+             const fallbackCatererId = adminUser ? adminUser._id : (await User.findOne({}))?._id;
+             if(fallbackCatererId){
+                 const updateResult = await MenuItem.updateMany({ catererId: userToDelete._id }, { $set: { catererId: fallbackCatererId } });
+                 if (updateResult.modifiedCount > 0) {
+                     successMessage += `\n${updateResult.modifiedCount} menu item(s) were reassigned.`;
+                 }
+             }
+        }
+        
+        await User.findByIdAndDelete(userId);
+        return { success: true, message: successMessage };
+    },
+    updateCart: async ({ userId, cart }: any) => {
+        await User.findByIdAndUpdate(userId, { $set: { cart: cart } });
+        return { success: true, message: 'Cart updated.' };
+    },
+    updateFavorites: async ({ userId, favorites }: any) => {
+        await User.findByIdAndUpdate(userId, { $set: { favorites: favorites } });
+        return { success: true, message: 'Favorites updated.' };
+    },
+    addMenuItem: async ({ itemData }: any) => {
+        const newItem = new MenuItem(itemData);
+        await newItem.save();
+        return { success: true, data: newItem, message: 'Item added.' };
+    },
+    updateMenuItem: async ({ updatedItem }: any) => {
+        const { id, ...updateData } = updatedItem;
+        const item = await MenuItem.findByIdAndUpdate(id, updateData, { new: true });
+        return { success: true, data: item, message: 'Item updated.' };
+    },
+    deleteMenuItem: async ({ itemId }: any) => {
+        const isInOrder = await Order.exists({ 'items.item._id': new Types.ObjectId(itemId) });
+        if (isInOrder) {
+            const item = await MenuItem.findById(itemId);
+            return { success: false, message: `Cannot delete "${item?.name || 'the item'}" because it is part of existing orders.` };
+        }
+        await MenuItem.findByIdAndDelete(itemId);
+        return { success: true, message: 'Item deleted.' };
+    },
+    addCategory: async ({ categoryName }: any) => {
+        const existingCategory = await Category.findOne({ name: { $regex: new RegExp(`^${categoryName}$`, 'i') } });
+        if (existingCategory) {
+            return { success: false, data: null, message: 'A category with this name already exists.' };
+        }
+        const newCategory = new Category({ name: categoryName });
+        await newCategory.save();
+        return { success: true, data: newCategory, message: 'Category added.' };
+    },
+    updateCategory: async ({ updatedCategory }: any) => {
+         const existingCategory = await Category.findOne({ 
+             name: { $regex: new RegExp(`^${updatedCategory.name}$`, 'i') }, 
+             _id: { $ne: updatedCategory.id } 
+         });
+       if (existingCategory) {
+           return { success: false, data: null, message: 'Another category with this name already exists.' };
+       }
+       const category = await Category.findByIdAndUpdate(updatedCategory.id, { name: updatedCategory.name }, { new: true });
+       return { success: true, data: category, message: 'Category updated.' };
+    },
+    deleteCategory: async ({ categoryId }: any) => {
+        const defaultCategory = await Category.findOne().sort({ createdAt: 1 }); // Assuming first created is default
+        if (!defaultCategory || defaultCategory._id.toString() === categoryId) {
+             return { success: false, message: 'Cannot delete the default category.' };
+        }
+        await MenuItem.updateMany({ categoryId: categoryId }, { $set: { categoryId: defaultCategory._id } });
+        await Category.findByIdAndDelete(categoryId);
+        return { success: true, message: 'Category deleted and items reassigned.' };
+    },
+    placeOrder: async ({ user, cart, total }: any) => {
+        if (cart.length === 0) return { success: false, data: null, message: 'Cart is empty.' };
+        
+        const newOrder = new Order({
+            userId: user.id,
+            customerName: user.name,
+            items: cart, // Assuming cart items have the full structure
+            total: total,
+            status: 'Pending',
+            orderDate: new Date().toISOString(),
+        });
+        await newOrder.save();
+        return { success: true, data: newOrder.toObject(), message: 'Order placed.' };
+    },
+    updateOrderStatus: async ({ orderId, status }: any) => {
+        await Order.findByIdAndUpdate(orderId, { $set: { status: status } });
+        return { success: true, message: 'Order status updated.' };
+    },
+    deleteOrder: async ({ orderId }: any) => {
+        const order = await Order.findById(orderId);
+        if (order && order.status !== 'Delivered' && order.status !== 'Cancelled') {
+             return { success: false, message: 'Cannot delete an order that is not completed or cancelled.' };
+        }
+        await Order.findByIdAndDelete(orderId);
+        return { success: true, message: 'Order deleted.' };
+    },
+    generateMealPlan: async ({ preferredItemNames, allMenuItems, budget }: any) => {
+        const recommendedNames = await getMealPlanFromServer(preferredItemNames, allMenuItems, budget);
+        return { success: true, data: recommendedNames };
+    },
+};
+
+// --- API Route ---
+app.post('/api', async (req, res) => {
+  const { action, payload } = req.body;
+  
+  if (!action) {
+      return res.status(400).json({ success: false, message: 'Action not specified.' });
+  }
+
+  const actionFunction = (logic as any)[action];
+
+  if (!actionFunction) {
+      return res.status(400).json({ success: false, message: `Invalid action: ${action}` });
+  }
+
+  try {
+    await connectToDatabase();
+    const result = await actionFunction(payload);
+    return res.status(200).json(result);
+  } catch (error: any) {
+    console.error(`Error executing action ${action}:`, error);
+    return res.status(500).json({ success: false, message: error.message || 'An internal server error occurred.' });
+  }
+});
+
+// --- Catch-all for Frontend Routing ---
+// This should be the last route. It ensures that any non-API requests are handled by the frontend.
+app.get('*', (req, res) => {
+    res.sendFile(path.join(rootDir, 'index.html'));
+});
+
+
+// --- Start Server ---
+app.listen(PORT, () => {
+  console.log(`🚀 Server is running on http://localhost:${PORT}`);
+});
