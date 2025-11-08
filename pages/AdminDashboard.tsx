@@ -2,7 +2,7 @@ import React from 'react';
 // FIX: Use namespace import for react-router-dom to resolve module export errors.
 import * as ReactRouterDOM from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
-import { UserRole } from '../types';
+import { UserRole } from '../server/types';
 import AdminDashboardHome from './admin/AdminDashboardHome';
 import AdminOrderManagement from './admin/AdminOrderManagement';
 import AdminMenuManagement from './admin/AdminMenuManagement';

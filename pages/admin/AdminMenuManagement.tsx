@@ -1,7 +1,8 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { MenuItem, UserRole } from '../../types';
+import { MenuItem, UserRole } from '../../server/types';
 
 const AdminMenuManagement: React.FC = () => {
     const { menuItems, categories, deleteMenuItem, users, isLoading } = useAppContext();

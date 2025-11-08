@@ -1,4 +1,5 @@
 
+
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -13,7 +14,7 @@ import process from 'process';
 import connectToDatabase from './db';
 import { User, MenuItem, Category, Order } from './models';
 import { getMealPlanFromServer } from './gemini';
-import { User as UserType, MenuItem as MenuItemType, Category as CategoryType, Order as OrderType, UserRole } from '../types';
+import { User as UserType, MenuItem as MenuItemType, Category as CategoryType, Order as OrderType, UserRole } from './types';
 import { Types } from 'mongoose';
 
 const app = express();

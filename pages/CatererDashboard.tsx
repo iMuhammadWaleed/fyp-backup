@@ -1,7 +1,7 @@
 import React from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
-import { UserRole } from '../types';
+import { UserRole } from '../server/types';
 import CatererDashboardHome from './caterer/CatererDashboardHome';
 import CatererMenuManagement from './caterer/CatererMenuManagement';
 import CatererOrderManagement from './caterer/CatererOrderManagement';

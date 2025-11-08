@@ -1,5 +1,5 @@
 import mongoose, { Schema, model, models, Document, Types } from 'mongoose';
-import { User as UserType, Category as CategoryType, MenuItem as MenuItemType, Order as OrderType, UserRole, CartItem } from '../../types';
+import { User as UserType, Category as CategoryType, MenuItem as MenuItemType, Order as OrderType, UserRole, CartItem } from './types';
 
 // --- Override Mongoose's default ID handling to use 'id' string ---
 const schemaOptions = {

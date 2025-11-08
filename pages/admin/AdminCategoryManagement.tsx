@@ -1,7 +1,8 @@
 
+
 import React, { useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { Category } from '../../types';
+import { Category } from '../../server/types';
 
 const AdminCategoryManagement: React.FC = () => {
     const { categories, deleteCategory, isLoading } = useAppContext();

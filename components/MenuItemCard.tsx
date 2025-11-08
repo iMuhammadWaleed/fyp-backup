@@ -1,10 +1,10 @@
 
+
 import React from 'react';
-import { MenuItem } from '../types';
+import { MenuItem, UserRole } from '../server/types';
 // FIX: Use namespace import for react-router-dom to resolve module export errors.
 import * as ReactRouterDOM from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
-import { UserRole } from '../types';
 
 interface MenuItemCardProps {
     item: MenuItem;

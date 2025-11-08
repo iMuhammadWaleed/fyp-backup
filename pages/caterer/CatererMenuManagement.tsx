@@ -1,7 +1,8 @@
 
+
 import React, { useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { MenuItem } from '../../types';
+import { MenuItem } from '../../server/types';
 
 const CatererMenuManagement: React.FC = () => {
     const { menuItems, categories, deleteMenuItem, currentUser, isLoading } = useAppContext();

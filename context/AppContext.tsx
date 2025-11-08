@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { User, UserRole, MenuItem, Category, Order, CartItem } from '../types';
+import { User, UserRole, MenuItem, Category, Order, CartItem } from '../server/types';
 import { geminiService } from '../services/geminiService';
 import { MOCK_USERS, MOCK_CATEGORIES, MOCK_MENU_ITEMS, MOCK_ORDERS } from '../constants';
 

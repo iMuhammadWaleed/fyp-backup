@@ -1,9 +1,8 @@
 
-
 import React, { useState, FormEvent, useEffect } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
-import { UserRole } from '../../types';
+import { UserRole } from '../../server/types';
 
 const AppLogo = () => (
     <div className="flex flex-col items-center space-y-2">
@@ -84,6 +83,7 @@ const CatererLoginPage: React.FC = () => {
                                             <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                                         </svg>
                                     </span>
+                                    {/* FIX: Complete the input element and add the rest of the component logic. */}
                                     <input
                                         id="password"
                                         name="password"
@@ -115,9 +115,16 @@ const CatererLoginPage: React.FC = () => {
                     </form>
                     <div className="text-sm text-center mt-6">
                         <p className="text-gray-600">
-                            Not a partner yet?{' '}
+                            Don't have a partner account?{' '}
                             <ReactRouterDOM.Link to="/caterer/register" className="font-medium text-teal-600 hover:text-teal-500">
-                                Become a Partner
+                                Register here
+                            </ReactRouterDOM.Link>
+                        </p>
+                    </div>
+                     <div className="text-sm text-center mt-4">
+                        <p>
+                            <ReactRouterDOM.Link to="/" className="font-medium text-gray-500 hover:text-gray-700 text-xs">
+                                &larr; Back to main site
                             </ReactRouterDOM.Link>
                         </p>
                     </div>

@@ -1,4 +1,4 @@
-import { User, MenuItem, Category, Order, CartItem } from '../types';
+import { User, MenuItem, Category, Order, CartItem } from '../server/types';
 
 const API_BASE_URL = 'http://localhost:4000';
 

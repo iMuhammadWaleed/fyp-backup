@@ -1,7 +1,7 @@
 import React, { useState, FormEvent } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
-import { UserRole } from '../../types';
+import { UserRole } from '../../server/types';
 
 const AppLogo = () => (
     <div className="flex flex-col items-center space-y-2">

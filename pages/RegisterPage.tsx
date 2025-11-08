@@ -1,10 +1,11 @@
 
 
+
 import React, { useState, FormEvent } from 'react';
 // FIX: Use namespace import for react-router-dom to resolve module export errors.
 import * as ReactRouterDOM from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
-import { UserRole } from '../types';
+import { UserRole } from '../server/types';
 
 const AppLogo = () => (
     <div className="flex flex-col items-center space-y-2">

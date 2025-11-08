@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
 import MenuItemCard from '../components/MenuItemCard';
-import { MenuItem } from '../types';
+import { MenuItem } from '../server/types';
 
 type SortOption = 'default' | 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc';
 

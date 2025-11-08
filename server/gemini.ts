@@ -2,7 +2,7 @@
 // It is not part of the client-side bundle.
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { MenuItem } from "../../types";
+import { MenuItem } from "./types";
 
 // This initialization is secure because it only happens on the server.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
