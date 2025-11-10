@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { User, UserRole, MenuItem, Category, Order, CartItem } from '../server/types.ts';
-import { geminiService } from '../services/geminiService.ts';
+import { apiService } from '../services/apiService.ts';
 import { MOCK_USERS, MOCK_CATEGORIES, MOCK_MENU_ITEMS, MOCK_ORDERS } from '../constants.ts';
 
 interface AppContextType {
@@ -143,9 +143,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const uniquePreferredItemNames = [...new Set(preferredItems.map(item => item.name))];
             const potentialMenuItems = menuItems.filter(item => !uniquePreferredItemNames.includes(item.name));
             const menuToRecommendFrom = potentialMenuItems.length > 0 ? potentialMenuItems : menuItems;
-            const recommendedNames = await geminiService.getMealPlan(uniquePreferredItemNames, menuToRecommendFrom, budget);
-            const recommendedMenuItems = menuItems.filter(item => recommendedNames.includes(item.name)).sort((a, b) => recommendedNames.indexOf(a.name) - recommendedNames.indexOf(b.name));
-            setMealPlan(recommendedMenuItems);
+
+            const result = await apiService.generateMealPlan(uniquePreferredItemNames, menuToRecommendFrom, budget);
+            
+            if (result.success && Array.isArray(result.data)) {
+                const recommendedNames = result.data;
+                const recommendedMenuItems = menuItems
+                    .filter(item => recommendedNames.includes(item.name))
+                    .sort((a, b) => recommendedNames.indexOf(a.name) - recommendedNames.indexOf(b.name));
+                setMealPlan(recommendedMenuItems);
+            } else {
+                console.error("Failed to fetch meal plan:", result.message);
+                setMealPlan([]);
+            }
+
         } catch (error) {
             console.error("Failed to fetch meal plan:", error);
             setMealPlan([]);

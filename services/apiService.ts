@@ -56,4 +56,8 @@ export const apiService = {
         apiRequest('placeOrder', { user, cart, total, paymentDetails }),
     updateOrderStatus: (orderId: string, status: Order['status']) => apiRequest('updateOrderStatus', { orderId, status }),
     deleteOrder: (orderId: string) => apiRequest('deleteOrder', { orderId }),
+
+    // --- Gemini ---
+    generateMealPlan: (preferredItemNames: string[], allMenuItems: MenuItem[], budget: number) => 
+        apiRequest('generateMealPlan', { preferredItemNames, allMenuItems, budget }),
 };
