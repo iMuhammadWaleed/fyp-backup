@@ -25,6 +25,14 @@ app.use(cors()); // Enable CORS for all routes
 app.use(express.json({ limit: '10mb' })); // Parse JSON bodies, increase limit for images
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Add a middleware to set the correct Content-Type for .ts/.tsx files
+app.use((req, res, next) => {
+  if (req.path.endsWith('.tsx') || req.path.endsWith('.ts')) {
+    res.type('application/javascript');
+  }
+  next();
+});
+
 // --- Serve Frontend Static Files ---
 const rootDir = process.cwd();
 app.use(express.static(rootDir));
