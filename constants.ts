@@ -1,4 +1,4 @@
-import { User, UserRole, MenuItem, Category, Order } from './server/types';
+import { User, UserRole, MenuItem, Category, Order } from './server/types.ts';
 
 export const MOCK_USERS: User[] = [
     { id: 'user-1', name: 'Admin User', email: 'admin@test.com', role: UserRole.ADMIN, password: 'password', businessName: 'GourmetGo Central Kitchen' },

@@ -1,8 +1,8 @@
 
 
 import React, { useState } from 'react';
-import { useAppContext } from '../../context/AppContext';
-import { MenuItem } from '../../server/types';
+import { useAppContext } from '../../context/AppContext.tsx';
+import { MenuItem } from '../../server/types.ts';
 
 const CatererMenuManagement: React.FC = () => {
     const { menuItems, categories, deleteMenuItem, currentUser, isLoading } = useAppContext();
@@ -52,7 +52,7 @@ const CatererMenuManagement: React.FC = () => {
                     </thead>
                     <tbody className="text-gray-700">
                         {myMenuItems.map(item => (
-                            <tr key={item.id} className="border-b align-middle">
+                            <tr key={item.id} className="border-b align-middle hover:bg-gray-50">
                                 <td className="py-2 px-4">
                                     <img src={item.imageUrl} alt={item.name} className="w-16 h-16 object-cover rounded-md" />
                                 </td>
@@ -81,13 +81,19 @@ interface MenuItemModalProps {
 
 const MenuItemModal: React.FC<MenuItemModalProps> = ({ item, onClose }) => {
     const { categories, addMenuItem, updateMenuItem, currentUser, isLoading } = useAppContext();
+    
+    if (!currentUser) {
+        onClose();
+        return null;
+    }
+
     const [formData, setFormData] = useState({
         name: item?.name || '',
         description: item?.description || '',
         price: item?.price || 0,
         imageUrl: item?.imageUrl || '',
         categoryId: item?.categoryId || categories[0]?.id || '',
-        catererId: currentUser?.id || '',
+        catererId: currentUser.id
     });
     const [imageError, setImageError] = useState('');
 
@@ -96,7 +102,7 @@ const MenuItemModal: React.FC<MenuItemModalProps> = ({ item, onClose }) => {
         setFormData(prev => ({...prev, [name]: name === 'price' ? parseFloat(value) : value }));
     };
 
-     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setImageError('');
         const file = e.target.files?.[0];
         if (!file) return;
@@ -115,7 +121,6 @@ const MenuItemModal: React.FC<MenuItemModalProps> = ({ item, onClose }) => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setImageError('');
         if (!formData.imageUrl) {
             setImageError('An image is required.');
             return;
@@ -127,12 +132,12 @@ const MenuItemModal: React.FC<MenuItemModalProps> = ({ item, onClose }) => {
         } else {
             result = await addMenuItem(formData);
         }
-        
-        if(result.success) {
+
+        if (result.success) {
             alert(item ? 'Item updated successfully.' : 'Item added successfully.');
             onClose();
         } else {
-            alert(`Error: ${result.message}`);
+             alert(`Error: ${result.message}`);
         }
     };
 
@@ -156,7 +161,7 @@ const MenuItemModal: React.FC<MenuItemModalProps> = ({ item, onClose }) => {
                             <label htmlFor="price" className="block text-sm font-medium text-gray-700">Price</label>
                             <input type="number" name="price" id="price" value={formData.price} onChange={handleChange} required step="0.01" className="mt-1 bg-white block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm"/>
                         </div>
-                        <div>
+                         <div>
                             <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700">Image</label>
                             <div className="mt-1 flex items-center">
                                 {formData.imageUrl ? (
@@ -180,14 +185,14 @@ const MenuItemModal: React.FC<MenuItemModalProps> = ({ item, onClose }) => {
                         <div>
                             <label htmlFor="categoryId" className="block text-sm font-medium text-gray-700">Category</label>
                             <select name="categoryId" id="categoryId" value={formData.categoryId} onChange={handleChange} required className="mt-1 bg-white block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm">
-                            {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                                {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                             </select>
                         </div>
                     </div>
                     <div className="flex justify-end space-x-4 p-4 bg-slate-100 border-t border-slate-200">
                         <button type="button" onClick={onClose} className="bg-white text-slate-700 px-4 py-2 rounded-md border border-slate-300 hover:bg-slate-100 font-semibold text-sm">Cancel</button>
                         <button type="submit" disabled={isLoading} className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 font-semibold text-sm disabled:bg-teal-400">
-                             {isLoading ? 'Saving...' : 'Save'}
+                           {isLoading ? 'Saving...' : 'Save'}
                         </button>
                     </div>
                 </form>

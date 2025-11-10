@@ -2,9 +2,9 @@
 
 import React from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
-import { useAppContext } from '../context/AppContext';
-import MenuItemCard from '../components/MenuItemCard';
-import { UserRole } from '../server/types';
+import { useAppContext } from '../context/AppContext.tsx';
+import MenuItemCard from '../components/MenuItemCard.tsx';
+import { UserRole } from '../server/types.ts';
 
 const FavoritesPage: React.FC = () => {
     const { menuItems, favorites, currentUser } = useAppContext();

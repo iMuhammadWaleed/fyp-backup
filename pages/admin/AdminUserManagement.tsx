@@ -1,8 +1,8 @@
 
 
 import React, { useState } from 'react';
-import { useAppContext } from '../../context/AppContext';
-import { User, UserRole } from '../../server/types';
+import { useAppContext } from '../../context/AppContext.tsx';
+import { User, UserRole } from '../../server/types.ts';
 
 const AdminUserManagement: React.FC = () => {
     const { users, currentUser, deleteUser, isLoading } = useAppContext();

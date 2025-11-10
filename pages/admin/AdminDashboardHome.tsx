@@ -1,6 +1,6 @@
 import React from 'react';
-import { useAppContext } from '../../context/AppContext';
-import { UserRole } from '../../server/types';
+import { useAppContext } from '../../context/AppContext.tsx';
+import { UserRole } from '../../server/types.ts';
 
 const StatCard: React.FC<{ title: string; value: number | string; icon: React.ReactNode; colorClass: string }> = ({ title, value, icon, colorClass }) => (
     <div className={`p-6 rounded-lg shadow-md ${colorClass}`}>

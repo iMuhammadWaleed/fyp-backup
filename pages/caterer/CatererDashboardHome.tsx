@@ -1,9 +1,9 @@
 
 
 import React, { useMemo } from 'react';
-import { useAppContext } from '../../context/AppContext';
+import { useAppContext } from '../../context/AppContext.tsx';
 import * as ReactRouterDOM from 'react-router-dom';
-import { Order } from '../../server/types';
+import { Order } from '../../server/types.ts';
 
 const StatCard: React.FC<{ title: string; value: number | string; icon: React.ReactNode; colorClass: string }> = ({ title, value, icon, colorClass }) => (
     <div className={`p-6 rounded-lg shadow-md ${colorClass}`}>

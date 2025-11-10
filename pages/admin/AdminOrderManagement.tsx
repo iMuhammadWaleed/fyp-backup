@@ -1,8 +1,8 @@
 
 
 import React, { useState, useMemo } from 'react';
-import { useAppContext } from '../../context/AppContext';
-import { Order } from '../../server/types';
+import { useAppContext } from '../../context/AppContext.tsx';
+import { Order } from '../../server/types.ts';
 
 const AdminOrderManagement: React.FC = () => {
     const { orders, updateOrderStatus, deleteOrder, isLoading } = useAppContext();

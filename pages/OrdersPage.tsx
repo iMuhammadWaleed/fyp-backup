@@ -1,10 +1,10 @@
 
 
 import React from 'react';
-import { useAppContext } from '../context/AppContext';
+import { useAppContext } from '../context/AppContext.tsx';
 // FIX: Use namespace import for react-router-dom to resolve module export errors.
 import * as ReactRouterDOM from 'react-router-dom';
-import { Order, UserRole } from '../server/types';
+import { Order, UserRole } from '../server/types.ts';
 
 const OrdersPage: React.FC = () => {
     const { orders, currentUser } = useAppContext();

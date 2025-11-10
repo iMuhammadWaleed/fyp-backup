@@ -2,30 +2,30 @@
 import React from 'react';
 // FIX: Use namespace import for react-router-dom to resolve module export errors.
 import * as ReactRouterDOM from 'react-router-dom';
-import { AppProvider } from './context/AppContext';
+import { AppProvider } from './context/AppContext.tsx';
 
-import Header from './components/Header';
-import Footer from './components/Footer';
-import HomePage from './pages/HomePage';
-import MenuPage from './pages/MenuPage';
-import MenuItemDetailPage from './pages/MenuItemDetailPage';
-import CartPage from './pages/CartPage';
-import CheckoutPage from './pages/CheckoutPage';
-import OrderConfirmationPage from './pages/OrderConfirmationPage';
-import OrdersPage from './pages/OrdersPage';
-import AdminDashboard from './pages/AdminDashboard';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import FavoritesPage from './pages/FavoritesPage';
-import AdminLoginPage from './pages/admin/AdminLoginPage';
-import AdminRegisterPage from './pages/admin/AdminRegisterPage';
-import CatererRegisterPage from './pages/CatererRegisterPage';
-import CatererDashboard from './pages/CatererDashboard';
-import ProfilePage from './pages/ProfilePage';
-import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import AdminForgotPasswordPage from './pages/admin/AdminForgotPasswordPage';
-import CatererLoginPage from './pages/caterer/CatererLoginPage';
-import CatererForgotPasswordPage from './pages/caterer/CatererForgotPasswordPage';
+import Header from './components/Header.tsx';
+import Footer from './components/Footer.tsx';
+import HomePage from './pages/HomePage.tsx';
+import MenuPage from './pages/MenuPage.tsx';
+import MenuItemDetailPage from './pages/MenuItemDetailPage.tsx';
+import CartPage from './pages/CartPage.tsx';
+import CheckoutPage from './pages/CheckoutPage.tsx';
+import OrderConfirmationPage from './pages/OrderConfirmationPage.tsx';
+import OrdersPage from './pages/OrdersPage.tsx';
+import AdminDashboard from './pages/AdminDashboard.tsx';
+import LoginPage from './pages/LoginPage.tsx';
+import RegisterPage from './pages/RegisterPage.tsx';
+import FavoritesPage from './pages/FavoritesPage.tsx';
+import AdminLoginPage from './pages/admin/AdminLoginPage.tsx';
+import AdminRegisterPage from './pages/admin/AdminRegisterPage.tsx';
+import CatererRegisterPage from './pages/CatererRegisterPage.tsx';
+import CatererDashboard from './pages/CatererDashboard.tsx';
+import ProfilePage from './pages/ProfilePage.tsx';
+import ForgotPasswordPage from './pages/ForgotPasswordPage.tsx';
+import AdminForgotPasswordPage from './pages/admin/AdminForgotPasswordPage.tsx';
+import CatererLoginPage from './pages/caterer/CatererLoginPage.tsx';
+import CatererForgotPasswordPage from './pages/caterer/CatererForgotPasswordPage.tsx';
 
 
 const AppContent: React.FC = () => {

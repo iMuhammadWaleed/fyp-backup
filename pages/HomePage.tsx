@@ -3,9 +3,9 @@
 import React, { useState } from 'react';
 // FIX: Use namespace import for react-router-dom to resolve module export errors.
 import * as ReactRouterDOM from 'react-router-dom';
-import { useAppContext } from '../context/AppContext';
-import MenuItemCard from '../components/MenuItemCard';
-import { UserRole } from '../server/types';
+import { useAppContext } from '../context/AppContext.tsx';
+import MenuItemCard from '../components/MenuItemCard.tsx';
+import { UserRole } from '../server/types.ts';
 
 const HowItWorksCard: React.FC<{ number: string, title: string, description: string, icon: React.ReactNode }> = ({ number, title, description, icon }) => (
     <div className="text-center p-6 bg-white rounded-lg shadow-md border border-gray-200">

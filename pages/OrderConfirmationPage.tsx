@@ -1,8 +1,9 @@
 
+
 import React, { useMemo } from 'react';
 // FIX: Use namespace import for react-router-dom to resolve module export errors.
 import * as ReactRouterDOM from 'react-router-dom';
-import { useAppContext } from '../context/AppContext';
+import { useAppContext } from '../context/AppContext.tsx';
 
 const OrderConfirmationPage: React.FC = () => {
     const { orderId } = ReactRouterDOM.useParams<{ orderId: string }>();

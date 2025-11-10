@@ -3,9 +3,9 @@
 import React, { useState, useMemo } from 'react';
 // FIX: Use namespace import for react-router-dom to resolve module export errors.
 import * as ReactRouterDOM from 'react-router-dom';
-import { useAppContext } from '../context/AppContext';
-import { UserRole } from '../server/types';
-import MenuItemCard from '../components/MenuItemCard';
+import { useAppContext } from '../context/AppContext.tsx';
+import { UserRole } from '../server/types.ts';
+import MenuItemCard from '../components/MenuItemCard.tsx';
 
 const MenuItemDetailPage: React.FC = () => {
     const { itemId } = ReactRouterDOM.useParams<{ itemId: string }>();
