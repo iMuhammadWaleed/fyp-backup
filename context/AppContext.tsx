@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { User, UserRole, MenuItem, Category, Order, CartItem } from '../server/types.ts';
 import { apiService } from '../services/apiService.ts';
-import { MOCK_USERS, MOCK_CATEGORIES, MOCK_MENU_ITEMS, MOCK_ORDERS } from '../constants.ts';
 
+// Interface for the context
 interface AppContextType {
     // State
     currentUser: User | null;
@@ -14,6 +14,7 @@ interface AppContextType {
     favorites: string[];
     mealPlan: MenuItem[];
     isLoading: boolean;
+    isFetchingRecs: boolean;
     
     // Derived State
     cartTotal: number;
@@ -75,65 +76,252 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [cart, setCart] = useState<CartItem[]>([]);
     const [favorites, setFavorites] = useState<string[]>([]);
     const [mealPlan, setMealPlan] = useState<MenuItem[]>([]);
-
-    // --- Data Loading from Local Storage ---
+    
+    // --- Data Loading & Persistence ---
+    const fetchData = useCallback(async (showLoading = true) => {
+        if (showLoading) setIsLoading(true);
+        const result = await apiService.fetchAllData();
+        if (result.success && result.data) {
+            setUsers(result.data.users || []);
+            setMenuItems(result.data.menuItems || []);
+            setCategories(result.data.categories || []);
+            setOrders(result.data.orders || []);
+        } else {
+            console.error("Failed to fetch data:", result.message);
+        }
+        if (showLoading) setIsLoading(false);
+    }, []);
+    
+    // Initial data load and session restoration
     useEffect(() => {
-        setIsLoading(true);
-        try {
-            const db = localStorage.getItem('gourmetgo_db');
-            let data;
-            if (db) {
-                data = JSON.parse(db);
-            } else {
-                data = {
-                    users: MOCK_USERS,
-                    menuItems: MOCK_MENU_ITEMS,
-                    categories: MOCK_CATEGORIES,
-                    orders: MOCK_ORDERS,
-                };
-            }
-            setUsers(data.users || []);
-            setMenuItems(data.menuItems || []);
-            setCategories(data.categories || []);
-            setOrders(data.orders || []);
+        const loadInitialData = async () => {
+            setIsLoading(true);
+            const initialDataResult = await apiService.fetchAllData();
             
-            // Session Management
+            if (initialDataResult.success && initialDataResult.data) {
+                setUsers(initialDataResult.data.users || []);
+                setMenuItems(initialDataResult.data.menuItems || []);
+                setCategories(initialDataResult.data.categories || []);
+                setOrders(initialDataResult.data.orders || []);
+            } else {
+                console.error("Failed to load initial data:", initialDataResult.message);
+            }
+
             const userId = sessionStorage.getItem('userId');
             if (userId) {
-                const user = data.users.find((u: User) => u.id === userId);
-                if (user) {
-                    setCurrentUser(user);
-                    setCart(user.cart || []);
-                    setFavorites(user.favorites || []);
+                const userResult = await apiService.getUserById(userId);
+                if (userResult.success && userResult.user) {
+                    setCurrentUser(userResult.user);
+                    setCart(userResult.user.cart || []);
+                    setFavorites(userResult.user.favorites || []);
                 } else {
-                    sessionStorage.removeItem('userId'); // Clean up invalid session
+                    sessionStorage.removeItem('userId');
                 }
             }
-        } catch (error) {
-            console.error("Failed to load data from local storage", error);
-        } finally {
             setIsLoading(false);
-        }
+        };
+        loadInitialData();
     }, []);
 
-    // --- Data Persistence to Local Storage ---
+    // Persist cart changes to DB
     useEffect(() => {
-        if (!isLoading) {
-            // Update user-specific data (cart/favorites) within the main users array for persistence
-            const updatedUsers = currentUser 
-                ? users.map(u => u.id === currentUser.id ? { ...u, cart, favorites } : u)
-                : users;
+        if (!currentUser || isLoading) return;
+        const handler = setTimeout(() => {
+            apiService.updateCart(currentUser.id, cart);
+        }, 500); // Debounce updates
+        return () => clearTimeout(handler);
+    }, [cart, currentUser, isLoading]);
 
-            const db = { users: updatedUsers, menuItems, categories, orders };
-            localStorage.setItem('gourmetgo_db', JSON.stringify(db));
+    // Persist favorites changes to DB
+    useEffect(() => {
+        if (!currentUser || isLoading) return;
+         const handler = setTimeout(() => {
+            apiService.updateFavorites(currentUser.id, favorites);
+        }, 500); // Debounce updates
+        return () => clearTimeout(handler);
+    }, [favorites, currentUser, isLoading]);
+
+    // --- Auth ---
+    const login = async (email: string, password?: string) => {
+        const result = await apiService.loginUser(email, password);
+        if (result.success && result.user) {
+            setCurrentUser(result.user);
+            setCart(result.user.cart || []);
+            setFavorites(result.user.favorites || []);
+            sessionStorage.setItem('userId', result.user.id);
         }
-    }, [users, menuItems, categories, orders, cart, favorites, currentUser, isLoading]);
+        return result;
+    };
+    
+    const logout = () => {
+        setCurrentUser(null);
+        setCart([]);
+        setFavorites([]);
+        setMealPlan([]);
+        sessionStorage.removeItem('userId');
+    };
+    
+    const register = async (userData: Omit<User, 'id'>) => {
+        const result = await apiService.addUser(userData);
+        if (result.success) {
+            await login(userData.email, userData.password);
+            await fetchData(false);
+        }
+        return result;
+    };
+
+    const registerCaterer = async (data: Omit<User, 'id' | 'role'>) => {
+        const catererData = { ...data, role: UserRole.CATERER };
+        const result = await apiService.addUser(catererData);
+        if (result.success) {
+            await login(data.email, data.password);
+            await fetchData(false);
+        }
+        return result;
+    };
+
+    const resetPassword = async (email: string, newPassword: string) => {
+        return await apiService.resetPassword(email, newPassword);
+    };
+
+    // --- Users ---
+    const addUser = async (userData: Omit<User, 'id'>) => {
+        const result = await apiService.addUser(userData);
+        if (result.success) await fetchData(false);
+        return result;
+    };
+
+    const updateUser = async (user: User) => {
+        const result = await apiService.updateUser(user);
+        if (result.success) {
+            if (currentUser?.id === user.id) {
+                 const userResult = await apiService.getUserById(user.id);
+                 if (userResult.success) setCurrentUser(userResult.user);
+            }
+            await fetchData(false);
+        }
+        return result;
+    };
+
+    const deleteUser = async (userId: string) => {
+        const result = await apiService.deleteUser(userId);
+        if (result.success) await fetchData(false);
+        return result;
+    };
+
+    // --- Menu Items ---
+    const addMenuItem = async (itemData: Omit<MenuItem, 'id'>) => {
+        const result = await apiService.addMenuItem(itemData);
+        if (result.success) await fetchData(false);
+        return result;
+    };
+    
+    const updateMenuItem = async (item: MenuItem) => {
+        const result = await apiService.updateMenuItem(item);
+        if (result.success) await fetchData(false);
+        return result;
+    };
+
+    const deleteMenuItem = async (itemId: string) => {
+        const result = await apiService.deleteMenuItem(itemId);
+        if (result.success) await fetchData(false);
+        return result;
+    };
+
+    // --- Categories ---
+    const addCategory = async (categoryName: string) => {
+        const result = await apiService.addCategory(categoryName);
+        if (result.success) await fetchData(false);
+        return result;
+    };
+    
+    const updateCategory = async (category: Category) => {
+        const result = await apiService.updateCategory(category);
+        if (result.success) await fetchData(false);
+        return result;
+    };
+
+    const deleteCategory = async (categoryId: string) => {
+        const result = await apiService.deleteCategory(categoryId);
+        if (result.success) await fetchData(false);
+        return result;
+    };
+
+    // --- Cart ---
+    const addToCart = (item: MenuItem) => {
+        setCart(prevCart => {
+            const existingItem = prevCart.find(cartItem => cartItem.item.id === item.id);
+            if (existingItem) {
+                return prevCart.map(cartItem =>
+                    cartItem.item.id === item.id ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem
+                );
+            }
+            return [...prevCart, { item, quantity: 1 }];
+        });
+    };
+    
+    const addToCartWithQuantity = (item: MenuItem, quantity: number) => {
+        setCart(prevCart => {
+            const existingItem = prevCart.find(cartItem => cartItem.item.id === item.id);
+            if (existingItem) {
+                return prevCart.map(cartItem =>
+                    cartItem.item.id === item.id ? { ...cartItem, quantity: cartItem.quantity + quantity } : cartItem
+                );
+            }
+            return [...prevCart, { item, quantity }];
+        });
+    };
+
+    const removeFromCart = (itemId: string) => {
+        setCart(prevCart => prevCart.filter(cartItem => cartItem.item.id !== itemId));
+    };
+
+    const updateCartQuantity = (itemId: string, quantity: number) => {
+        if (quantity < 1) {
+            removeFromCart(itemId);
+            return;
+        }
+        setCart(prevCart => prevCart.map(cartItem =>
+            cartItem.item.id === itemId ? { ...cartItem, quantity } : cartItem
+        ));
+    };
+
+    const clearCart = () => setCart([]);
+
+    // --- Favorites ---
+    const toggleFavorite = (itemId: string) => {
+        setFavorites(prev =>
+            prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]
+        );
+    };
+    const isFavorite = (itemId: string) => favorites.includes(itemId);
+    
+    // --- Orders ---
+    const placeOrder = async (paymentDetails: { method: string; [key: string]: any; }) => {
+        if (!currentUser) return { success: false, error: 'You must be logged in to place an order.' };
+        const result = await apiService.placeOrder(currentUser, cart, cartTotal, paymentDetails);
+        if (result.success) {
+            clearCart();
+            await fetchData(false);
+        }
+        return { ...result, order: result.data };
+    };
+    
+    const updateOrderStatus = async (orderId: string, status: Order['status']) => {
+        const result = await apiService.updateOrderStatus(orderId, status);
+        if (result.success) await fetchData(false);
+        return result;
+    };
+
+    const deleteOrder = async (orderId: string) => {
+        const result = await apiService.deleteOrder(orderId);
+        if (result.success) await fetchData(false);
+        return result;
+    };
 
     // --- AI Meal Planner ---
-    const clearMealPlan = () => setMealPlan([]);
-
     const generateMealPlan = async (budget: number) => {
-        if (!currentUser || currentUser.role !== UserRole.CUSTOMER || menuItems.length === 0) return;
+        if (!currentUser || menuItems.length === 0) return;
         setIsFetchingRecs(true);
         try {
             const userOrders = orders.filter(o => o.userId === currentUser.id);
@@ -141,8 +329,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const orderedItems = userOrders.flatMap(o => o.items.map(cartItem => cartItem.item));
             const preferredItems = [...favoriteItems, ...orderedItems];
             const uniquePreferredItemNames = [...new Set(preferredItems.map(item => item.name))];
-            const potentialMenuItems = menuItems.filter(item => !uniquePreferredItemNames.includes(item.name));
-            const menuToRecommendFrom = potentialMenuItems.length > 0 ? potentialMenuItems : menuItems;
+            const menuToRecommendFrom = menuItems.filter(item => !uniquePreferredItemNames.includes(item.name) || menuItems.length < 5);
 
             const result = await apiService.generateMealPlan(uniquePreferredItemNames, menuToRecommendFrom, budget);
             
@@ -156,7 +343,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 console.error("Failed to fetch meal plan:", result.message);
                 setMealPlan([]);
             }
-
         } catch (error) {
             console.error("Failed to fetch meal plan:", error);
             setMealPlan([]);
@@ -165,220 +351,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     };
 
-    // --- Auth ---
-    const login = async (email: string, password?: string) => {
-        const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-        if (user) {
-            setCurrentUser(user);
-            setCart(user.cart || []);
-            setFavorites(user.favorites || []);
-            sessionStorage.setItem('userId', user.id);
-            return { success: true, user, message: 'Login successful.' };
-        }
-        return { success: false, user: null, message: 'Invalid email or password.' };
-    };
-    
-    const logout = () => {
-        setCurrentUser(null);
-        setCart([]);
-        setFavorites([]);
-        setMealPlan([]);
-        sessionStorage.removeItem('userId');
-    };
-    
-    const register = async (userData: Omit<User, 'id'>) => {
-        const existingUser = users.find(u => u.email.toLowerCase() === userData.email.toLowerCase());
-        if (existingUser) {
-            return { success: false, message: 'An account with this email already exists.' };
-        }
-        const newUser: User = { ...userData, id: `user-${Date.now()}` };
-        setUsers(prev => [...prev, newUser]);
-        await login(newUser.email, newUser.password);
-        return { success: true, message: 'Registration successful.' };
-    };
+    const clearMealPlan = () => setMealPlan([]);
 
-    const registerCaterer = async (data: Omit<User, 'id' | 'role'>) => {
-        const catererData = { ...data, role: UserRole.CATERER };
-        return register(catererData);
-    };
-
-    const resetPassword = async (email: string, newPassword: string) => {
-        let userFound = false;
-        setUsers(prev => prev.map(user => {
-            if (user.email.toLowerCase() === email.toLowerCase()) {
-                userFound = true;
-                return { ...user, password: newPassword };
-            }
-            return user;
-        }));
-        return userFound 
-            ? { success: true, message: 'Password reset successful.' }
-            : { success: false, message: 'User not found.' };
-    };
-
-    // --- Users ---
-    const addUser = async (userData: Omit<User, 'id'>) => {
-        const existingUser = users.find(u => u.email.toLowerCase() === userData.email.toLowerCase());
-        if (existingUser) {
-            return { success: false, message: 'An account with this email already exists.' };
-        }
-        const newUser: User = { ...userData, id: `user-${Date.now()}` };
-        setUsers(prev => [...prev, newUser]);
-        return { success: true, message: 'User added successfully.' };
-    };
-
-    const updateUser = async (updatedUser: User) => {
-        setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
-        if (currentUser?.id === updatedUser.id) {
-            setCurrentUser(updatedUser);
-        }
-        return { success: true, message: 'User updated successfully.' };
-    };
-
-    const deleteUser = async (userId: string) => {
-        const userToDelete = users.find(u => u.id === userId);
-        if (!userToDelete) return { success: false, message: 'User not found.' };
-
-        // Prevent deletion if customer has orders
-        if (userToDelete.role === UserRole.CUSTOMER) {
-            if (orders.some(o => o.userId === userId)) {
-                return { success: false, message: `Cannot delete customer "${userToDelete.name}" as they have existing orders.` };
-            }
-        }
-        
-        setUsers(prev => prev.filter(u => u.id !== userId));
-        return { success: true, message: 'User deleted successfully.' };
-    };
-    
-    // --- Menu Items ---
-    const addMenuItem = async (itemData: Omit<MenuItem, 'id'>) => {
-        const newItem: MenuItem = { ...itemData, id: `item-${Date.now()}` };
-        setMenuItems(prev => [...prev, newItem]);
-        return { success: true, message: 'Item added successfully.' };
-    };
-
-    const updateMenuItem = async (updatedItem: MenuItem) => {
-        setMenuItems(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
-        // Also update the item if it's in the cart
-        setCart(prevCart => prevCart.map(cartItem => 
-            cartItem.item.id === updatedItem.id 
-                ? { ...cartItem, item: updatedItem }
-                : cartItem
-        ));
-        return { success: true, message: 'Item updated successfully.' };
-    };
-
-    const deleteMenuItem = async (itemId: string) => {
-        setMenuItems(prev => prev.filter(item => item.id !== itemId));
-        setCart(prev => prev.filter(cartItem => cartItem.item.id !== itemId));
-        setFavorites(prev => prev.filter(id => id !== itemId));
-        return { success: true, message: 'Item deleted successfully.' };
-    };
-
-    // --- Categories ---
-    const addCategory = async (categoryName: string) => {
-        const existingCategory = categories.find(c => c.name.toLowerCase() === categoryName.toLowerCase());
-        if (existingCategory) {
-            return { success: false, message: 'A category with this name already exists.' };
-        }
-        const newCategory: Category = { name: categoryName, id: `cat-${Date.now()}` };
-        setCategories(prev => [...prev, newCategory]);
-        return { success: true, message: 'Category added successfully.' };
-    };
-
-    const updateCategory = async (updatedCategory: Category) => {
-        const existingCategory = categories.find(c => c.name.toLowerCase() === updatedCategory.name.toLowerCase() && c.id !== updatedCategory.id);
-        if (existingCategory) {
-            return { success: false, message: 'Another category with this name already exists.' };
-        }
-        setCategories(prev => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c));
-        return { success: true, message: 'Category updated successfully.' };
-    };
-
-    const deleteCategory = async (categoryId: string) => {
-        if (categories.length <= 1) {
-            return { success: false, message: 'Cannot delete the last category.' };
-        }
-        const defaultCategory = categories.find(c => c.id !== categoryId);
-        // Re-assign menu items to a default category
-        setMenuItems(prev => prev.map(item => item.categoryId === categoryId ? { ...item, categoryId: defaultCategory!.id } : item));
-        setCategories(prev => prev.filter(c => c.id !== categoryId));
-        return { success: true, message: 'Category deleted.' };
-    };
-
-    // --- Cart Management ---
-    const addToCart = (item: MenuItem) => addToCartWithQuantity(item, 1);
-    const addToCartWithQuantity = (item: MenuItem, quantity: number) => {
-        setCart(prevCart => {
-            const existingItem = prevCart.find(ci => ci.item.id === item.id);
-            if (existingItem) {
-                return prevCart.map(ci => ci.item.id === item.id ? { ...ci, quantity: ci.quantity + quantity } : ci);
-            }
-            return [...prevCart, { item, quantity }];
-        });
-    };
-    const removeFromCart = (itemId: string) => setCart(prev => prev.filter(ci => ci.item.id !== itemId));
-    const updateCartQuantity = (itemId: string, quantity: number) => {
-        if (quantity <= 0) {
-            removeFromCart(itemId);
-        } else {
-            setCart(prev => prev.map(ci => ci.item.id === itemId ? { ...ci, quantity } : ci));
-        }
-    };
-    const clearCart = () => setCart([]);
+    // --- Derived State ---
     const cartTotal = cart.reduce((total, { item, quantity }) => total + item.price * quantity, 0);
 
-    // --- Orders ---
-    const placeOrder = async (paymentDetails: { method: string; [key: string]: any; }) => {
-        if (!currentUser) return { success: false, error: 'User not logged in.' };
-        if (cart.length === 0) return { success: false, error: 'Cart is empty.' };
-        
-        const newOrder: Order = {
-            id: `order-${Date.now()}`,
-            userId: currentUser.id,
-            items: cart,
-            total: cartTotal,
-            status: 'Pending',
-            orderDate: new Date().toISOString(),
-            customerName: currentUser.name,
-        };
-
-        setOrders(prev => [...prev, newOrder]);
-        clearCart();
-        return { success: true, order: newOrder };
-    };
-
-    const updateOrderStatus = async (orderId: string, status: Order['status']) => {
-        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
-        return { success: true, message: 'Order status updated.' };
-    };
-
-    const deleteOrder = async (orderId: string) => {
-        setOrders(prev => prev.filter(o => o.id !== orderId));
-        return { success: true, message: 'Order deleted.' };
-    };
-
-    // --- Favorites Management ---
-    const toggleFavorite = (itemId: string) => {
-        setFavorites(prev => prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]);
-    };
-    const isFavorite = (itemId: string) => favorites.includes(itemId);
-    
     // --- Context Value ---
     const value = {
-        currentUser, users, menuItems, categories, orders, cart, favorites, mealPlan,
-        isLoading: isLoading || isFetchingRecs,
-        cartTotal,
+        currentUser, users, menuItems, categories, orders, cart, favorites, mealPlan, isLoading, isFetchingRecs,
+        cartTotal, isFavorite,
         login, logout, register, registerCaterer, resetPassword,
         addUser, updateUser, deleteUser,
         addMenuItem, updateMenuItem, deleteMenuItem,
         addCategory, updateCategory, deleteCategory,
         addToCart, addToCartWithQuantity, removeFromCart, updateCartQuantity, clearCart,
         placeOrder, updateOrderStatus, deleteOrder,
-        toggleFavorite, isFavorite,
+        toggleFavorite,
         generateMealPlan, clearMealPlan,
     };
-
+    
     return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
