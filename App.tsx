@@ -69,9 +69,9 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
     return (
         <AppProvider>
-            <ReactRouterDOM.BrowserRouter>
+            <ReactRouterDOM.HashRouter>
                 <AppContent />
-            </ReactRouterDOM.BrowserRouter>
+            </ReactRouterDOM.HashRouter>
         </AppProvider>
     );
 };
