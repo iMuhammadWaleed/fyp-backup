@@ -2,8 +2,7 @@
 
 import React from 'react';
 import { MenuItem, UserRole } from '../server/types.ts';
-// FIX: Use namespace import for react-router-dom to resolve module export errors.
-import * as ReactRouterDOM from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext.tsx';
 
 interface MenuItemCardProps {
@@ -30,7 +29,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
 
 
     return (
-        <ReactRouterDOM.Link to={`/menu/${item.id}`} className="block bg-white rounded-lg shadow-lg overflow-hidden transform hover:scale-105 transition-transform duration-300 group flex flex-col">
+        <Link to={`/menu/${item.id}`} className="block bg-white rounded-lg shadow-lg overflow-hidden transform hover:scale-105 transition-transform duration-300 group flex flex-col">
             <div className="relative">
                 <img className="w-full h-48 object-cover" src={item.imageUrl} alt={item.name} />
                  {currentUser?.role === UserRole.CUSTOMER && (
@@ -53,7 +52,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
                     <span className="text-teal-500 font-semibold text-sm">View Details &rarr;</span>
                 </div>
             </div>
-        </ReactRouterDOM.Link>
+        </Link>
     );
 };
 

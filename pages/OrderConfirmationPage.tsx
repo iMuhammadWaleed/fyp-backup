@@ -1,12 +1,11 @@
 
 
 import React, { useMemo } from 'react';
-// FIX: Use namespace import for react-router-dom to resolve module export errors.
-import * as ReactRouterDOM from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext.tsx';
 
 const OrderConfirmationPage: React.FC = () => {
-    const { orderId } = ReactRouterDOM.useParams<{ orderId: string }>();
+    const { orderId } = useParams<{ orderId: string }>();
     const { orders } = useAppContext();
 
     // Use useMemo to efficiently find the order and avoid re-computation on re-renders.
@@ -19,9 +18,9 @@ const OrderConfirmationPage: React.FC = () => {
             <div className="text-center bg-white p-12 rounded-lg shadow-lg">
                 <h1 className="text-3xl font-bold text-red-600 mb-4">Order Not Found</h1>
                 <p className="text-gray-600 mb-8">We couldn't find the order you're looking for.</p>
-                <ReactRouterDOM.Link to="/orders" className="bg-teal-600 text-white px-6 py-2 rounded-md hover:bg-teal-700">
+                <Link to="/orders" className="bg-teal-600 text-white px-6 py-2 rounded-md hover:bg-teal-700">
                     View Order History
-                </ReactRouterDOM.Link>
+                </Link>
             </div>
         );
     }
@@ -81,12 +80,12 @@ const OrderConfirmationPage: React.FC = () => {
                 </div>
 
                 <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
-                    <ReactRouterDOM.Link to="/orders" className="bg-teal-600 text-white px-6 py-3 rounded-md hover:bg-teal-700 font-semibold">
+                    <Link to="/orders" className="bg-teal-600 text-white px-6 py-3 rounded-md hover:bg-teal-700 font-semibold">
                         View Order History
-                    </ReactRouterDOM.Link>
-                     <ReactRouterDOM.Link to="/menu" className="bg-gray-200 text-gray-800 px-6 py-3 rounded-md hover:bg-gray-300 font-semibold">
+                    </Link>
+                     <Link to="/menu" className="bg-gray-200 text-gray-800 px-6 py-3 rounded-md hover:bg-gray-300 font-semibold">
                         Continue Shopping
-                    </ReactRouterDOM.Link>
+                    </Link>
                 </div>
             </div>
         </>

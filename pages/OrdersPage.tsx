@@ -2,15 +2,14 @@
 
 import React from 'react';
 import { useAppContext } from '../context/AppContext.tsx';
-// FIX: Use namespace import for react-router-dom to resolve module export errors.
-import * as ReactRouterDOM from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { Order, UserRole } from '../server/types.ts';
 
 const OrdersPage: React.FC = () => {
     const { orders, currentUser } = useAppContext();
 
     if (!currentUser || currentUser.role !== UserRole.CUSTOMER) {
-        return <ReactRouterDOM.Navigate to="/login" />;
+        return <Navigate to="/login" />;
     }
 
     const userOrders = orders.filter(order => order.userId === currentUser.id);

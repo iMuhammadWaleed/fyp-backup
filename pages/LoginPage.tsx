@@ -1,8 +1,7 @@
 
 
 import React, { useState, FormEvent } from 'react';
-// FIX: Use namespace import for react-router-dom to resolve module export errors.
-import * as ReactRouterDOM from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext.tsx';
 import { UserRole } from '../server/types.ts';
 
@@ -19,7 +18,7 @@ const AppLogo = () => (
 
 const LoginPage: React.FC = () => {
     const { login, logout } = useAppContext();
-    const navigate = ReactRouterDOM.useNavigate();
+    const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState<React.ReactNode>('');
@@ -37,9 +36,9 @@ const LoginPage: React.FC = () => {
                 setError(
                     <>
                         Admin accounts must sign in via the{' '}
-                        <ReactRouterDOM.Link to="/admin/login" className="font-medium text-teal-600 hover:text-teal-500">
+                        <Link to="/admin/login" className="font-medium text-teal-600 hover:text-teal-500">
                             admin portal
-                        </ReactRouterDOM.Link>
+                        </Link>
                         .
                     </>
                 );
@@ -48,9 +47,9 @@ const LoginPage: React.FC = () => {
                  setError(
                     <>
                         Partner accounts must sign in via the{' '}
-                        <ReactRouterDOM.Link to="/caterer/login" className="font-medium text-teal-600 hover:text-teal-500">
+                        <Link to="/caterer/login" className="font-medium text-teal-600 hover:text-teal-500">
                             caterer portal
-                        </ReactRouterDOM.Link>
+                        </Link>
                         .
                     </>
                 );
@@ -110,9 +109,9 @@ const LoginPage: React.FC = () => {
                                     />
                                 </div>
                                  <div className="text-right mt-2">
-                                    <ReactRouterDOM.Link to="/forgot-password" className="text-sm font-medium text-teal-600 hover:text-teal-500">
+                                    <Link to="/forgot-password" className="text-sm font-medium text-teal-600 hover:text-teal-500">
                                         Forgot your password?
-                                    </ReactRouterDOM.Link>
+                                    </Link>
                                 </div>
                             </div>
                         </div>
@@ -130,15 +129,15 @@ const LoginPage: React.FC = () => {
                     <div className="text-sm text-center mt-6">
                         <p className="text-gray-600">
                             Don't have an account?{' '}
-                            <ReactRouterDOM.Link to="/register" className="font-medium text-teal-600 hover:text-teal-500">
+                            <Link to="/register" className="font-medium text-teal-600 hover:text-teal-500">
                             Sign up
-                            </ReactRouterDOM.Link>
+                            </Link>
                         </p>
                     </div>
                     <div className="text-center mt-4">
-                        <ReactRouterDOM.Link to="/menu" className="font-medium text-gray-500 hover:text-gray-700 text-sm">
+                        <Link to="/menu" className="font-medium text-gray-500 hover:text-gray-700 text-sm">
                             &larr; Back to Menu
-                        </ReactRouterDOM.Link>
+                        </Link>
                     </div>
                 </div>
             </div>

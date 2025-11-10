@@ -1,6 +1,6 @@
 
 import React, { useState, FormEvent, useEffect } from 'react';
-import * as ReactRouterDOM from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import { UserRole } from '../../server/types';
 
@@ -18,8 +18,8 @@ const AppLogo = () => (
 
 const CatererLoginPage: React.FC = () => {
     const { login, logout, currentUser } = useAppContext();
-    const navigate = ReactRouterDOM.useNavigate();
-    const location = ReactRouterDOM.useLocation();
+    const navigate = useNavigate();
+    const location = useLocation();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -96,9 +96,9 @@ const CatererLoginPage: React.FC = () => {
                                     />
                                 </div>
                                 <div className="text-right mt-2">
-                                    <ReactRouterDOM.Link to="/caterer/forgot-password" className="text-sm font-medium text-teal-600 hover:text-teal-500">
+                                    <Link to="/caterer/forgot-password" className="text-sm font-medium text-teal-600 hover:text-teal-500">
                                         Forgot your password?
-                                    </ReactRouterDOM.Link>
+                                    </Link>
                                 </div>
                             </div>
                         </div>
@@ -115,16 +115,16 @@ const CatererLoginPage: React.FC = () => {
                     <div className="text-sm text-center mt-6">
                         <p className="text-gray-600">
                             Don't have a partner account?{' '}
-                            <ReactRouterDOM.Link to="/caterer/register" className="font-medium text-teal-600 hover:text-teal-500">
+                            <Link to="/caterer/register" className="font-medium text-teal-600 hover:text-teal-500">
                                 Register here
-                            </ReactRouterDOM.Link>
+                            </Link>
                         </p>
                     </div>
                      <div className="text-sm text-center mt-4">
                         <p>
-                            <ReactRouterDOM.Link to="/" className="font-medium text-gray-500 hover:text-gray-700 text-xs">
+                            <Link to="/" className="font-medium text-gray-500 hover:text-gray-700 text-xs">
                                 &larr; Back to main site
-                            </ReactRouterDOM.Link>
+                            </Link>
                         </p>
                     </div>
                 </div>

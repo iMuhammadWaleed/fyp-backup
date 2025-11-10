@@ -1,6 +1,6 @@
+
 import React from 'react';
-// FIX: Use namespace import for react-router-dom to resolve module export errors.
-import * as ReactRouterDOM from 'react-router-dom';
+import { useLocation, Navigate, NavLink, Routes, Route } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext.tsx';
 import { UserRole } from '../server/types.ts';
 import AdminDashboardHome from './admin/AdminDashboardHome.tsx';
@@ -19,14 +19,14 @@ const UsersIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w
 
 const AdminDashboard: React.FC = () => {
     const { currentUser } = useAppContext();
-    const location = ReactRouterDOM.useLocation();
+    const location = useLocation();
 
     if (!currentUser) {
-        return <ReactRouterDOM.Navigate to="/admin/login" state={{ from: location }} replace />;
+        return <Navigate to="/admin/login" state={{ from: location }} replace />;
     }
     
     if (currentUser.role !== UserRole.ADMIN) {
-        return <ReactRouterDOM.Navigate to="/" replace />;
+        return <Navigate to="/" replace />;
     }
     
     const baseLinkClasses = "flex items-center px-4 py-2 text-gray-700 rounded-md transition-colors";
@@ -46,22 +46,22 @@ const AdminDashboard: React.FC = () => {
             <aside className="md:w-64 flex-shrink-0">
                 <nav className="sticky top-24 bg-white p-4 rounded-lg shadow-lg space-y-2">
                     {navLinks.map(link => (
-                         <ReactRouterDOM.NavLink key={link.to} to={link.to} end={link.to === '/admin'} className={({isActive}) => `${baseLinkClasses} ${isActive ? activeLinkClasses : inactiveLinkClasses}`}>
+                         <NavLink key={link.to} to={link.to} end={link.to === '/admin'} className={({isActive}) => `${baseLinkClasses} ${isActive ? activeLinkClasses : inactiveLinkClasses}`}>
                             {link.icon}
                             <span>{link.label}</span>
-                        </ReactRouterDOM.NavLink>
+                        </NavLink>
                     ))}
                 </nav>
             </aside>
             <div className="flex-grow bg-white p-8 rounded-lg shadow-lg min-h-[calc(100vh-10rem)]">
-                <ReactRouterDOM.Routes>
-                    <ReactRouterDOM.Route path="/" element={<AdminDashboardHome />} />
-                    <ReactRouterDOM.Route path="orders" element={<AdminOrderManagement />} />
-                    <ReactRouterDOM.Route path="menu" element={<AdminMenuManagement />} />
-                    <ReactRouterDOM.Route path="users" element={<AdminUserManagement />} />
-                    <ReactRouterDOM.Route path="categories" element={<AdminCategoryManagement />} />
-                    <ReactRouterDOM.Route path="*" element={<ReactRouterDOM.Navigate to="/admin" />} />
-                </ReactRouterDOM.Routes>
+                <Routes>
+                    <Route path="/" element={<AdminDashboardHome />} />
+                    <Route path="orders" element={<AdminOrderManagement />} />
+                    <Route path="menu" element={<AdminMenuManagement />} />
+                    <Route path="users" element={<AdminUserManagement />} />
+                    <Route path="categories" element={<AdminCategoryManagement />} />
+                    <Route path="*" element={<Navigate to="/admin" />} />
+                </Routes>
             </div>
         </div>
     );

@@ -1,7 +1,7 @@
 
 
 import React from 'react';
-import * as ReactRouterDOM from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 const AppLogo = () => (
     <div className="flex flex-col items-center space-y-2">
@@ -31,9 +31,9 @@ const AdminRegisterPage: React.FC = () => {
                         </p>
                     </div>
                     <div className="text-sm text-center mt-6">
-                        <ReactRouterDOM.Link to="/admin/login" className="font-medium text-gray-500 hover:text-gray-700 text-xs">
+                        <Link to="/admin/login" className="font-medium text-gray-500 hover:text-gray-700 text-xs">
                             &larr; Back to Admin Sign in
-                        </ReactRouterDOM.Link>
+                        </Link>
                     </div>
                 </div>
             </div>

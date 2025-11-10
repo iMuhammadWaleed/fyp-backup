@@ -1,12 +1,12 @@
 
+
 import React, { useState, FormEvent, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext.tsx';
-// FIX: Use namespace import for react-router-dom to resolve module export errors.
-import * as ReactRouterDOM from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const CheckoutPage: React.FC = () => {
     const { cart, cartTotal, placeOrder, currentUser } = useAppContext();
-    const navigate = ReactRouterDOM.useNavigate();
+    const navigate = useNavigate();
 
     const [isProcessing, setIsProcessing] = useState(false);
     const [paymentError, setPaymentError] = useState('');
@@ -233,9 +233,9 @@ const CheckoutPage: React.FC = () => {
                         className="w-full bg-green-500 text-white px-8 py-3 rounded-md font-semibold text-lg hover:bg-green-600 disabled:bg-gray-400 flex items-center justify-center">
                         {isProcessing ? 'Processing...' : `Place Order - PKR ${(cartTotal + 250).toFixed(2)}`}
                     </button>
-                     <ReactRouterDOM.Link to="/cart" className="text-center block mt-2 text-teal-600 hover:underline text-sm">
+                     <Link to="/cart" className="text-center block mt-2 text-teal-600 hover:underline text-sm">
                         &larr; Back to Cart
-                    </ReactRouterDOM.Link>
+                    </Link>
                 </form>
                 
                 {/* Right Column: Order Summary */}

@@ -1,7 +1,8 @@
+
 import React, { useState, FormEvent } from 'react';
-import * as ReactRouterDOM from 'react-router-dom';
-import { useAppContext } from '../../context/AppContext';
-import { UserRole } from '../../server/types';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAppContext } from '../../context/AppContext.tsx';
+import { UserRole } from '../../server/types.ts';
 
 const AppLogo = () => (
     <div className="flex flex-col items-center space-y-2">
@@ -16,7 +17,7 @@ const AppLogo = () => (
 
 const AdminForgotPasswordPage: React.FC = () => {
     const { resetPassword, users } = useAppContext();
-    const navigate = ReactRouterDOM.useNavigate();
+    const navigate = useNavigate();
     
     const [email, setEmail] = useState('');
     const [verificationCode, setVerificationCode] = useState('');
@@ -140,9 +141,9 @@ const AdminForgotPasswordPage: React.FC = () => {
                             </div>
 
                              <div className="text-sm text-center">
-                                <ReactRouterDOM.Link to="/admin/login" className="font-medium text-teal-600 hover:text-teal-500">
+                                <Link to="/admin/login" className="font-medium text-teal-600 hover:text-teal-500">
                                     Return to Admin Sign in
-                                </ReactRouterDOM.Link>
+                                </Link>
                             </div>
                         </form>
                     )}

@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
-// FIX: Use namespace import for react-router-dom to resolve module export errors.
-import * as ReactRouterDOM from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext.tsx';
 import { UserRole } from '../server/types.ts';
 
@@ -18,7 +17,7 @@ const AppLogo = () => (
 
 const Header: React.FC = () => {
     const { currentUser, logout, cart } = useAppContext();
-    const navigate = ReactRouterDOM.useNavigate();
+    const navigate = useNavigate();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     const handleLogout = () => {
@@ -37,16 +36,16 @@ const Header: React.FC = () => {
 
     const renderLinks = () => (
         <>
-            <ReactRouterDOM.NavLink to="/" className={getLinkClass}>Home</ReactRouterDOM.NavLink>
-            <ReactRouterDOM.NavLink to="/menu" className={getLinkClass}>Menu</ReactRouterDOM.NavLink>
+            <NavLink to="/" className={getLinkClass}>Home</NavLink>
+            <NavLink to="/menu" className={getLinkClass}>Menu</NavLink>
             {currentUser?.role === UserRole.ADMIN && (
-                <ReactRouterDOM.NavLink to="/admin" className={getLinkClass}>Admin</ReactRouterDOM.NavLink>
+                <NavLink to="/admin" className={getLinkClass}>Admin</NavLink>
             )}
              {currentUser?.role === UserRole.CATERER && (
-                <ReactRouterDOM.NavLink to="/caterer" className={getLinkClass}>Dashboard</ReactRouterDOM.NavLink>
+                <NavLink to="/caterer" className={getLinkClass}>Dashboard</NavLink>
             )}
             {currentUser?.role === UserRole.CUSTOMER && (
-                <ReactRouterDOM.NavLink to="/orders" className={getLinkClass}>Order History</ReactRouterDOM.NavLink>
+                <NavLink to="/orders" className={getLinkClass}>Order History</NavLink>
             )}
         </>
     );
@@ -57,7 +56,7 @@ const Header: React.FC = () => {
                 <div className="container mx-auto px-4">
                     <div className="flex items-center justify-between h-16">
                         <div className="flex items-center">
-                            <ReactRouterDOM.NavLink to="/" className="text-2xl font-bold text-white"><AppLogo /></ReactRouterDOM.NavLink>
+                            <NavLink to="/" className="text-2xl font-bold text-white"><AppLogo /></NavLink>
                             <div className="hidden md:block ml-10">
                                 <div className="flex items-baseline space-x-4">
                                    {renderLinks()}
@@ -66,14 +65,14 @@ const Header: React.FC = () => {
                         </div>
                         <div className="flex items-center">
                             {currentUser?.role === UserRole.CUSTOMER && (
-                                <ReactRouterDOM.NavLink to="/cart" className="relative mr-4 text-gray-300 hover:text-white transition-colors">
+                                <NavLink to="/cart" className="relative mr-4 text-gray-300 hover:text-white transition-colors">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                                     </svg>
                                     {cartItemCount > 0 && (
                                         <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">{cartItemCount}</span>
                                     )}
-                                </ReactRouterDOM.NavLink>
+                                </NavLink>
                             )}
                             <div className="hidden md:block">
                                 {currentUser ? (
@@ -83,8 +82,8 @@ const Header: React.FC = () => {
                                     </div>
                                 ) : (
                                     <div className="space-x-2">
-                                        <ReactRouterDOM.NavLink to="/login" className="bg-teal-600 hover:bg-teal-700 text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Login</ReactRouterDOM.NavLink>
-                                        <ReactRouterDOM.NavLink to="/register" className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Register</ReactRouterDOM.NavLink>
+                                        <NavLink to="/login" className="bg-teal-600 hover:bg-teal-700 text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Login</NavLink>
+                                        <NavLink to="/register" className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Register</NavLink>
                                     </div>
                                 )}
                             </div>
@@ -125,8 +124,8 @@ const Header: React.FC = () => {
                                  </>
                             ) : (
                                  <div className="px-2 space-y-1">
-                                    <ReactRouterDOM.NavLink to="/login" className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Login</ReactRouterDOM.NavLink>
-                                    <ReactRouterDOM.NavLink to="/register" className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Register</ReactRouterDOM.NavLink>
+                                    <NavLink to="/login" className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Login</NavLink>
+                                    <NavLink to="/register" className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Register</NavLink>
                                  </div>
                             )}
                         </div>

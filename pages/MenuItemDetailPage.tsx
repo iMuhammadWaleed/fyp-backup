@@ -1,16 +1,15 @@
 
 
 import React, { useState, useMemo } from 'react';
-// FIX: Use namespace import for react-router-dom to resolve module export errors.
-import * as ReactRouterDOM from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext.tsx';
 import { UserRole } from '../server/types.ts';
 import MenuItemCard from '../components/MenuItemCard.tsx';
 
 const MenuItemDetailPage: React.FC = () => {
-    const { itemId } = ReactRouterDOM.useParams<{ itemId: string }>();
+    const { itemId } = useParams<{ itemId: string }>();
     const { menuItems, addToCartWithQuantity, currentUser, users, toggleFavorite, isFavorite } = useAppContext();
-    const navigate = ReactRouterDOM.useNavigate();
+    const navigate = useNavigate();
     const [quantity, setQuantity] = useState(1);
     const [added, setAdded] = useState(false);
 
@@ -30,7 +29,7 @@ const MenuItemDetailPage: React.FC = () => {
         return (
             <div className="text-center py-10">
                 <h1 className="text-2xl font-bold">Menu Item Not Found</h1>
-                <ReactRouterDOM.Link to="/menu" className="mt-4 inline-block bg-teal-600 text-white px-6 py-2 rounded-md hover:bg-teal-700">Back to Menu</ReactRouterDOM.Link>
+                <Link to="/menu" className="mt-4 inline-block bg-teal-600 text-white px-6 py-2 rounded-md hover:bg-teal-700">Back to Menu</Link>
             </div>
         );
     }
@@ -100,9 +99,9 @@ const MenuItemDetailPage: React.FC = () => {
                                 </button>
                             )}
                         </div>
-                         <ReactRouterDOM.Link to="/menu" className="text-center mt-4 text-teal-600 hover:underline">
+                         <Link to="/menu" className="text-center mt-4 text-teal-600 hover:underline">
                             &larr; Back to Menu
-                        </ReactRouterDOM.Link>
+                        </Link>
                     </div>
                 </div>
 

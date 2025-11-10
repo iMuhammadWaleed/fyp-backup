@@ -2,8 +2,7 @@
 
 
 import React, { useState, FormEvent } from 'react';
-// FIX: Use namespace import for react-router-dom to resolve module export errors.
-import * as ReactRouterDOM from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext.tsx';
 import { UserRole } from '../server/types.ts';
 
@@ -20,7 +19,7 @@ const AppLogo = () => (
 
 const RegisterPage: React.FC = () => {
     const { register } = useAppContext();
-    const navigate = ReactRouterDOM.useNavigate();
+    const navigate = useNavigate();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -136,15 +135,15 @@ const RegisterPage: React.FC = () => {
                     <div className="text-sm text-center mt-6">
                         <p className="text-gray-600">
                             Already have an account?{' '}
-                            <ReactRouterDOM.Link to="/login" className="font-medium text-teal-600 hover:text-teal-500">
+                            <Link to="/login" className="font-medium text-teal-600 hover:text-teal-500">
                             Sign in
-                            </ReactRouterDOM.Link>
+                            </Link>
                         </p>
                     </div>
                     <div className="text-center mt-4">
-                        <ReactRouterDOM.Link to="/menu" className="font-medium text-gray-500 hover:text-gray-700 text-sm">
+                        <Link to="/menu" className="font-medium text-gray-500 hover:text-gray-700 text-sm">
                             &larr; Back to Menu
-                        </ReactRouterDOM.Link>
+                        </Link>
                     </div>
                 </div>
             </div>

@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect, FormEvent } from 'react';
 import { useAppContext } from '../context/AppContext';
-import * as ReactRouterDOM from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { User, UserRole } from '../server/types';
 
 const ProfilePage: React.FC = () => {
     const { currentUser, updateUser, logout } = useAppContext();
-    const navigate = ReactRouterDOM.useNavigate();
+    const navigate = useNavigate();
     
     const [formData, setFormData] = useState<Partial<User>>({});
     const [isEditing, setIsEditing] = useState(false);

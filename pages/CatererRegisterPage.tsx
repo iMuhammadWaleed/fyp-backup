@@ -1,7 +1,7 @@
 
 
 import React, { useState, FormEvent } from 'react';
-import * as ReactRouterDOM from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext.tsx';
 
 const AppLogo = () => (
@@ -17,7 +17,7 @@ const AppLogo = () => (
 
 const CatererRegisterPage: React.FC = () => {
     const { registerCaterer } = useAppContext();
-    const navigate = ReactRouterDOM.useNavigate();
+    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         businessName: '',
         name: '', // Contact Person Name
@@ -92,9 +92,9 @@ const CatererRegisterPage: React.FC = () => {
                     <div className="text-sm text-center mt-6">
                         <p className="text-gray-600">
                             Already have a partner account?{' '}
-                            <ReactRouterDOM.Link to="/caterer/login" className="font-medium text-teal-600 hover:text-teal-500">
+                            <Link to="/caterer/login" className="font-medium text-teal-600 hover:text-teal-500">
                             Sign in
-                            </ReactRouterDOM.Link>
+                            </Link>
                         </p>
                     </div>
                 </div>

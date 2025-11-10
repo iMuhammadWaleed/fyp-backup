@@ -1,8 +1,7 @@
 
 
 import React, { useState } from 'react';
-// FIX: Use namespace import for react-router-dom to resolve module export errors.
-import * as ReactRouterDOM from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext.tsx';
 import MenuItemCard from '../components/MenuItemCard.tsx';
 import { UserRole } from '../server/types.ts';
@@ -64,9 +63,9 @@ const HomePage: React.FC = () => {
                 <div className="relative z-10">
                     <h1 className="text-5xl font-extrabold text-white mb-4">Exquisite Catering for Every Occasion</h1>
                     <p className="text-xl text-gray-200 mb-8 max-w-3xl mx-auto">From corporate events to intimate gatherings, we deliver unforgettable culinary experiences.</p>
-                    <ReactRouterDOM.Link to="/menu" className="bg-teal-600 text-white px-8 py-3 rounded-full font-semibold text-lg hover:bg-teal-700 transition-transform hover:scale-105 inline-block">
+                    <Link to="/menu" className="bg-teal-600 text-white px-8 py-3 rounded-full font-semibold text-lg hover:bg-teal-700 transition-transform hover:scale-105 inline-block">
                         View Full Menu
-                    </ReactRouterDOM.Link>
+                    </Link>
                 </div>
             </section>
 

@@ -1,5 +1,6 @@
+
 import React, { useState, FormEvent } from 'react';
-import * as ReactRouterDOM from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import { UserRole } from '../../server/types';
 
@@ -16,7 +17,7 @@ const AppLogo = () => (
 
 const CatererForgotPasswordPage: React.FC = () => {
     const { resetPassword, users } = useAppContext();
-    const navigate = ReactRouterDOM.useNavigate();
+    const navigate = useNavigate();
     
     const [email, setEmail] = useState('');
     const [verificationCode, setVerificationCode] = useState('');
@@ -140,9 +141,9 @@ const CatererForgotPasswordPage: React.FC = () => {
                             </div>
 
                              <div className="text-sm text-center">
-                                <ReactRouterDOM.Link to="/caterer/login" className="font-medium text-teal-600 hover:text-teal-500">
+                                <Link to="/caterer/login" className="font-medium text-teal-600 hover:text-teal-500">
                                     Return to Caterer Sign in
-                                </ReactRouterDOM.Link>
+                                </Link>
                             </div>
                         </form>
                     )}

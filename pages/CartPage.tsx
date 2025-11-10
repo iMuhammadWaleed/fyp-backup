@@ -1,8 +1,8 @@
 
+
 import React from 'react';
 import { useAppContext } from '../context/AppContext.tsx';
-// FIX: Use namespace import for react-router-dom to resolve module export errors.
-import * as ReactRouterDOM from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 const CartPage: React.FC = () => {
     const { cart, cartTotal, removeFromCart, updateCartQuantity, clearCart } = useAppContext();
@@ -26,7 +26,7 @@ const CartPage: React.FC = () => {
             {cart.length === 0 ? (
                 <div className="text-center py-10">
                     <p className="text-xl text-gray-500">Your cart is empty.</p>
-                    <ReactRouterDOM.Link to="/menu" className="mt-4 inline-block bg-teal-600 text-white px-6 py-2 rounded-md hover:bg-teal-700">Browse Menu</ReactRouterDOM.Link>
+                    <Link to="/menu" className="mt-4 inline-block bg-teal-600 text-white px-6 py-2 rounded-md hover:bg-teal-700">Browse Menu</Link>
                 </div>
             ) : (
                 <>
@@ -62,14 +62,14 @@ const CartPage: React.FC = () => {
                             <span className="text-2xl font-bold ml-4">PKR {cartTotal.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-end mt-6 space-x-4">
-                             <ReactRouterDOM.Link to="/menu" className="bg-gray-200 text-gray-800 px-8 py-3 rounded-md font-semibold hover:bg-gray-300">
+                             <Link to="/menu" className="bg-gray-200 text-gray-800 px-8 py-3 rounded-md font-semibold hover:bg-gray-300">
                                 Continue Shopping
-                            </ReactRouterDOM.Link>
-                            <ReactRouterDOM.Link 
+                            </Link>
+                            <Link 
                                 to="/checkout"
                                 className="bg-green-500 text-white px-8 py-3 rounded-md font-semibold hover:bg-green-600">
                                 Proceed to Payment
-                            </ReactRouterDOM.Link>
+                            </Link>
                         </div>
                     </div>
                 </>

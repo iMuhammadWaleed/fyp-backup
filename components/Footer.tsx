@@ -1,5 +1,6 @@
+
 import React from 'react';
-import * as ReactRouterDOM from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 const Footer: React.FC = () => {
     return (
@@ -13,16 +14,16 @@ const Footer: React.FC = () => {
                     <div>
                         <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
                         <ul className="space-y-2">
-                            <li><ReactRouterDOM.Link to="/" className="text-gray-400 hover:text-white">Home</ReactRouterDOM.Link></li>
-                            <li><ReactRouterDOM.Link to="/menu" className="text-gray-400 hover:text-white">Menu</ReactRouterDOM.Link></li>
-                            <li><ReactRouterDOM.Link to="/orders" className="text-gray-400 hover:text-white">My Orders</ReactRouterDOM.Link></li>
+                            <li><Link to="/" className="text-gray-400 hover:text-white">Home</Link></li>
+                            <li><Link to="/menu" className="text-gray-400 hover:text-white">Menu</Link></li>
+                            <li><Link to="/orders" className="text-gray-400 hover:text-white">My Orders</Link></li>
                         </ul>
                     </div>
                      <div>
                         <h3 className="text-lg font-semibold mb-4">For Partners</h3>
                         <ul className="space-y-2">
-                            <li><ReactRouterDOM.Link to="/caterer/register" className="text-gray-400 hover:text-white">Become a Partner</ReactRouterDOM.Link></li>
-                            <li><ReactRouterDOM.Link to="/admin/login" className="text-gray-400 hover:text-white">Admin Portal</ReactRouterDOM.Link></li>
+                            <li><Link to="/caterer/register" className="text-gray-400 hover:text-white">Become a Partner</Link></li>
+                            <li><Link to="/admin/login" className="text-gray-400 hover:text-white">Admin Portal</Link></li>
                         </ul>
                     </div>
                 </div>

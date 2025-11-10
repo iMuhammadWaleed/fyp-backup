@@ -1,7 +1,7 @@
 
 
 import React from 'react';
-import * as ReactRouterDOM from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext.tsx';
 import MenuItemCard from '../components/MenuItemCard.tsx';
 import { UserRole } from '../server/types.ts';
@@ -10,7 +10,7 @@ const FavoritesPage: React.FC = () => {
     const { menuItems, favorites, currentUser } = useAppContext();
 
     if (!currentUser || currentUser.role !== UserRole.CUSTOMER) {
-        return <ReactRouterDOM.Navigate to="/login" />;
+        return <Navigate to="/login" />;
     }
 
     const favoriteItems = menuItems.filter(item => favorites.includes(item.id));
@@ -25,9 +25,9 @@ const FavoritesPage: React.FC = () => {
                     </svg>
                     <p className="text-xl text-gray-500 mt-4">You have no favorite items yet.</p>
                     <p className="text-gray-400 mt-2">Click the heart icon on any menu item to add it here.</p>
-                    <ReactRouterDOM.Link to="/menu" className="mt-6 inline-block bg-teal-600 text-white px-6 py-3 rounded-md hover:bg-teal-700 font-semibold">
+                    <Link to="/menu" className="mt-6 inline-block bg-teal-600 text-white px-6 py-3 rounded-md hover:bg-teal-700 font-semibold">
                         Browse Menu
-                    </ReactRouterDOM.Link>
+                    </Link>
                 </div>
             ) : (
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">

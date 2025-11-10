@@ -1,5 +1,6 @@
+
 import React from 'react';
-import * as ReactRouterDOM from 'react-router-dom';
+import { useLocation, Navigate, NavLink, Routes, Route } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext.tsx';
 import { UserRole } from '../server/types.ts';
 import CatererDashboardHome from './caterer/CatererDashboardHome.tsx';
@@ -13,14 +14,14 @@ const MenuIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-
 
 const CatererDashboard: React.FC = () => {
     const { currentUser } = useAppContext();
-    const location = ReactRouterDOM.useLocation();
+    const location = useLocation();
 
     if (!currentUser) {
-        return <ReactRouterDOM.Navigate to="/login" state={{ from: location }} replace />;
+        return <Navigate to="/login" state={{ from: location }} replace />;
     }
     
     if (currentUser.role !== UserRole.CATERER) {
-        return <ReactRouterDOM.Navigate to="/" replace />;
+        return <Navigate to="/" replace />;
     }
     
     const baseLinkClasses = "flex items-center px-4 py-2 text-gray-700 rounded-md transition-colors";
@@ -38,20 +39,20 @@ const CatererDashboard: React.FC = () => {
             <aside className="md:w-64 flex-shrink-0">
                 <nav className="sticky top-24 bg-white p-4 rounded-lg shadow-lg space-y-2">
                     {navLinks.map(link => (
-                         <ReactRouterDOM.NavLink key={link.to} to={link.to} end={link.to === '/caterer'} className={({isActive}) => `${baseLinkClasses} ${isActive ? activeLinkClasses : inactiveLinkClasses}`}>
+                         <NavLink key={link.to} to={link.to} end={link.to === '/caterer'} className={({isActive}) => `${baseLinkClasses} ${isActive ? activeLinkClasses : inactiveLinkClasses}`}>
                             {link.icon}
                             <span>{link.label}</span>
-                        </ReactRouterDOM.NavLink>
+                        </NavLink>
                     ))}
                 </nav>
             </aside>
             <div className="flex-grow bg-white p-8 rounded-lg shadow-lg min-h-[calc(100vh-10rem)]">
-                <ReactRouterDOM.Routes>
-                    <ReactRouterDOM.Route path="/" element={<CatererDashboardHome />} />
-                    <ReactRouterDOM.Route path="menu" element={<CatererMenuManagement />} />
-                    <ReactRouterDOM.Route path="orders" element={<CatererOrderManagement />} />
-                    <ReactRouterDOM.Route path="*" element={<ReactRouterDOM.Navigate to="/caterer" />} />
-                </ReactRouterDOM.Routes>
+                <Routes>
+                    <Route path="/" element={<CatererDashboardHome />} />
+                    <Route path="menu" element={<CatererMenuManagement />} />
+                    <Route path="orders" element={<CatererOrderManagement />} />
+                    <Route path="*" element={<Navigate to="/caterer" />} />
+                </Routes>
             </div>
         </div>
     );
